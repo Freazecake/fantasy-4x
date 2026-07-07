@@ -4,6 +4,8 @@
 
 #include "external/json.hpp"
 
+using json = nlohmann::json;
+
 struct RaceModifiers
 {
     float science = 1.0f;
@@ -17,11 +19,13 @@ struct RaceModifiers
 class Race
 {
 private:
-    std::string name;
-    RaceModifiers modifiers;
-    std::string startingSettlementType; // "village", "cave", "fortress"...
+    std::string m_name;
+    RaceModifiers m_modifiers;
+    std::string m_startingSettlementType; // "village", "cave", "fortress"...
 public:
-    Race();
+    Race(const json &obj) { Race::loadFromJson(obj); }
     ~Race() = default;
     static Race loadFromJson(const json &obj);
+    std::string getName() const { return m_name; }
+    RaceModifiers getModifiers() const { return m_modifiers; }
 };

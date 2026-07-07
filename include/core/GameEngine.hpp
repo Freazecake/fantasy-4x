@@ -2,25 +2,15 @@
 
 #include <vector>
 
-#include "Map.hpp"
-#include "GameEngine.hpp"
-#include "Player.hpp"
-
-enum class GamePhase
-{
-    Phase1,
-    Phase2,
-};
+#include "GameState.hpp"
 
 class GameEngine
 {
 private:
-    std::vector<Player> m_players;
-    Map m_map;
-    int m_turnNumber = 0;
+    GameState m_state;
 
 public:
-    void nextTurn();                // применяет ход для всех игроков
-    bool checkVictoryCondition();   // "остался один игрок"
-    GamePhase currentPhase() const; // Phase1_Village, Phase2_State, ...
+    void nextTurn();
+    bool checkVictoryCondition();
+    GlobalPhase currentPhase() const;
 };

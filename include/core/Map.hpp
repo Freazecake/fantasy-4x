@@ -7,7 +7,7 @@
 class Map
 {
 private:
-    std::vector<Tile> map;
+    std::vector<Tile> m_map;
 
 public:
     Map();
