@@ -12,8 +12,13 @@ struct Resources
     float military = 0;
     float growth = 0;
 
+    Resources();
+    Resources(float);
+    Resources(const Resources &);
     void operator+=(const Resources &);
     Resources operator*(float);
+    Resources operator*(const Modifiers &);
+    Resources &operator=(Resources &&);
 };
 
 class Economy
@@ -22,6 +27,9 @@ private:
     Resources m_res;
 
 public:
-    static Resources computeSettlementOutput(const Settlement &s, const RaceModifiers &mods);
+    Economy();
+    Economy(const Modifiers &);
+    Economy(const Economy &);
+    static Resources computeSettlementOutput(const Settlement &, const Modifiers &);
     void accumulate(const Resources &);
 };

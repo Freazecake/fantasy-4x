@@ -4,15 +4,16 @@
 
 #include "Tile.hpp"
 
-// struct SettlementModifiers
-// {
-//     float science = 1.0f;
-//     float industry = 1.0f;
-//     float trade = 1.0f;
-//     float diplomacy = 1.0f;
-//     float military = 1.0f;
-//     float growth = 1.0f;
-// };
+struct PopulationAllocation
+{
+    int science = 0;
+    int industry = 0;
+    int trade = 0;
+    int diplomacy = 0;
+    int idle = 0;
+
+    int total() const { return science + industry + trade + diplomacy + idle; }
+};
 
 enum class SettlementType
 {
@@ -29,7 +30,7 @@ private:
     SettlementType m_type;
     std::vector<Tile> m_tiles;
     int m_ownerId;
-    int m_population;
+    PopulationAllocation m_population;
 
 public:
     Settlement();
