@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-bool Coords::is_nearby(const Coords &other)
+bool Coords::is_nearby(const Coords &other) const
 {
     return abs(this->q - other.q) <= 1 && abs(this->r - other.r) <= 1;
 }
@@ -15,4 +15,5 @@ Tile::Tile(const Tile &other)
 {
     coords.q = other.coords.q;
     coords.r = other.coords.r;
+    type = other.type;
 }

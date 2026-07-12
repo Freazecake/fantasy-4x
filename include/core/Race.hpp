@@ -13,6 +13,8 @@ private:
     std::string m_name;
     Modifiers m_modifiers;
     std::string m_startingSettlementType;
+
+public:
     Race();
     Race(const json &obj) { Race::loadFromJson(obj); }
     ~Race() = default;

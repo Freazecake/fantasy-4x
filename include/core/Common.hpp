@@ -1,5 +1,9 @@
 #pragma once
 
+#include <array>
+#include <utility>
+#include <algorithm>
+
 enum class Sphere
 {
     Science,
