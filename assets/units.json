@@ -1,0 +1,43 @@
+{
+    "units": [
+        {
+            "id": "militia",
+            "name": "Ополченец",
+            "stats": {
+                "health": 20.0,
+                "attack": 3.0,
+                "defense": 2.0
+            },
+            "tier": 0,
+            "requiredBuildingId": "",
+            "recruitCost": 15,
+            "populationCost": 1
+        },
+        {
+            "id": "swordsman",
+            "name": "Мечник",
+            "stats": {
+                "health": 35.0,
+                "attack": 7.0,
+                "defense": 5.0
+            },
+            "tier": 1,
+            "requiredBuildingId": "barracks",
+            "recruitCost": 30,
+            "populationCost": 1
+        },
+        {
+            "id": "archer",
+            "name": "Лучник",
+            "stats": {
+                "health": 22.0,
+                "attack": 8.0,
+                "defense": 2.0
+            },
+            "tier": 1,
+            "requiredBuildingId": "barracks",
+            "recruitCost": 28,
+            "populationCost": 1
+        }
+    ]
+}
