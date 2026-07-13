@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #include <array>
 #include <utility>
 #include <algorithm>
@@ -23,6 +24,8 @@ struct Modifiers
     float military = 1.0f;
     float growth = 1.0f;
 
+    Modifiers() = default;
+
     const std::pair<Sphere, float> findMaxModifier(const Modifiers &m)
     {
         const std::array<std::pair<Sphere, float>, 6> values = {{
@@ -37,6 +40,16 @@ struct Modifiers
         return *std::max_element(values.begin(), values.end(),
                                  [](const auto &a, const auto &b)
                                  { return a.second < b.second; });
+    }
+
+    std::string toString() const
+    {
+        return "Modifiers: Science: " + std::to_string(science) +
+               ", Industry: " + std::to_string(industry) +
+               ", Trade: " + std::to_string(trade) +
+               ", Diplomacy: " + std::to_string(diplomacy) +
+               ", Military: " + std::to_string(military) +
+               ", Growth: " + std::to_string(growth);
     }
 };
 
