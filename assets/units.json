@@ -11,7 +11,7 @@
             "tier": 0,
             "requiredBuildingId": "",
             "recruitCost": 15,
-            "populationCost": 1
+            "populationCost": 30
         },
         {
             "id": "swordsman",
@@ -24,7 +24,7 @@
             "tier": 1,
             "requiredBuildingId": "barracks",
             "recruitCost": 30,
-            "populationCost": 1
+            "populationCost": 50
         },
         {
             "id": "archer",
@@ -37,7 +37,7 @@
             "tier": 1,
             "requiredBuildingId": "barracks",
             "recruitCost": 28,
-            "populationCost": 1
+            "populationCost": 50
         }
     ]
 }
