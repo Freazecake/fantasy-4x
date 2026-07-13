@@ -1,5 +1,5 @@
 {
-  "_comment": "requiredTechId ссылается на id из data/technologies.json (\"\" = доступно без исследований). unlocksUnitIds/removesUntrainedPenalty используются только для category=military.",
+  "_comment": "Building больше не хранит requiredTechId — какая технология открывает здание, определяется только со стороны Technology.unlocksBuildingIds (см. technologies.json). resourceType используется только при загрузке, чтобы понять, в какое поле Modifiers записать bonusMultiplier — самим классом Building не хранится отдельно.",
   "buildings": [
     {
       "id": "library",
@@ -8,7 +8,6 @@
       "resourceType": "science",
       "bonusMultiplier": 1.15,
       "industryCost": 40,
-      "requiredTechId": "",
       "unlocksUnitIds": [],
       "removesUntrainedPenalty": false
     },
@@ -19,7 +18,6 @@
       "resourceType": "science",
       "bonusMultiplier": 1.3,
       "industryCost": 90,
-      "requiredTechId": "tech_science_1",
       "unlocksUnitIds": [],
       "removesUntrainedPenalty": false
     },
@@ -30,7 +28,6 @@
       "resourceType": "industry",
       "bonusMultiplier": 1.15,
       "industryCost": 40,
-      "requiredTechId": "",
       "unlocksUnitIds": [],
       "removesUntrainedPenalty": false
     },
@@ -41,7 +38,6 @@
       "resourceType": "industry",
       "bonusMultiplier": 1.3,
       "industryCost": 90,
-      "requiredTechId": "tech_industry_1",
       "unlocksUnitIds": [],
       "removesUntrainedPenalty": false
     },
@@ -52,7 +48,6 @@
       "resourceType": "trade",
       "bonusMultiplier": 1.15,
       "industryCost": 40,
-      "requiredTechId": "",
       "unlocksUnitIds": [],
       "removesUntrainedPenalty": false
     },
@@ -63,7 +58,6 @@
       "resourceType": "trade",
       "bonusMultiplier": 1.3,
       "industryCost": 90,
-      "requiredTechId": "tech_trade_1",
       "unlocksUnitIds": [],
       "removesUntrainedPenalty": false
     },
@@ -74,7 +68,6 @@
       "resourceType": "diplomacy",
       "bonusMultiplier": 1.15,
       "industryCost": 40,
-      "requiredTechId": "",
       "unlocksUnitIds": [],
       "removesUntrainedPenalty": false
     },
@@ -85,7 +78,6 @@
       "resourceType": "diplomacy",
       "bonusMultiplier": 1.3,
       "industryCost": 90,
-      "requiredTechId": "tech_diplomacy_1",
       "unlocksUnitIds": [],
       "removesUntrainedPenalty": false
     },
@@ -96,8 +88,9 @@
       "resourceType": "",
       "bonusMultiplier": 0.0,
       "industryCost": 60,
-      "requiredTechId": "",
-      "unlocksUnitIds": ["unit_veteran_warrior"],
+      "unlocksUnitIds": [
+        "unit_veteran_warrior"
+      ],
       "removesUntrainedPenalty": true
     }
   ]

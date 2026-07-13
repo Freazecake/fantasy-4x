@@ -1,0 +1,149 @@
+{
+  "_comment": "bonusCategories явно перечисляет, к каким сферам применяется globalBonusMultiplier — для обычных тех это всегда [category], для синергетических (tech_synergy_*) это обе категории, задействованные в prerequisiteIds. unlocksBuildingIds ссылается на id из buildings.json.",
+  "technologies": [
+    {
+      "id": "tech_science_1",
+      "name": "Основы астрономии",
+      "category": "science",
+      "scienceCost": 50,
+      "prerequisiteIds": [],
+      "unlocksBuildingIds": [
+        "observatory"
+      ],
+      "bonusCategories": [
+        "science"
+      ],
+      "globalBonusMultiplier": 1.0
+    },
+    {
+      "id": "tech_science_2",
+      "name": "Прикладная механика",
+      "category": "science",
+      "scienceCost": 100,
+      "prerequisiteIds": [
+        "tech_science_1"
+      ],
+      "unlocksBuildingIds": [],
+      "bonusCategories": [
+        "science"
+      ],
+      "globalBonusMultiplier": 1.1
+    },
+    {
+      "id": "tech_industry_1",
+      "name": "Металлургия",
+      "category": "industry",
+      "scienceCost": 50,
+      "prerequisiteIds": [],
+      "unlocksBuildingIds": [
+        "forge"
+      ],
+      "bonusCategories": [
+        "industry"
+      ],
+      "globalBonusMultiplier": 1.0
+    },
+    {
+      "id": "tech_industry_2",
+      "name": "Паровые механизмы",
+      "category": "industry",
+      "scienceCost": 100,
+      "prerequisiteIds": [
+        "tech_industry_1"
+      ],
+      "unlocksBuildingIds": [],
+      "bonusCategories": [
+        "industry"
+      ],
+      "globalBonusMultiplier": 1.1
+    },
+    {
+      "id": "tech_trade_1",
+      "name": "Бухгалтерия",
+      "category": "trade",
+      "scienceCost": 50,
+      "prerequisiteIds": [],
+      "unlocksBuildingIds": [
+        "trade_house"
+      ],
+      "bonusCategories": [
+        "trade"
+      ],
+      "globalBonusMultiplier": 1.0
+    },
+    {
+      "id": "tech_trade_2",
+      "name": "Морская торговля",
+      "category": "trade",
+      "scienceCost": 100,
+      "prerequisiteIds": [
+        "tech_trade_1"
+      ],
+      "unlocksBuildingIds": [],
+      "bonusCategories": [
+        "trade"
+      ],
+      "globalBonusMultiplier": 1.1
+    },
+    {
+      "id": "tech_diplomacy_1",
+      "name": "Дипломатический протокол",
+      "category": "diplomacy",
+      "scienceCost": 50,
+      "prerequisiteIds": [],
+      "unlocksBuildingIds": [
+        "chancellery"
+      ],
+      "bonusCategories": [
+        "diplomacy"
+      ],
+      "globalBonusMultiplier": 1.0
+    },
+    {
+      "id": "tech_diplomacy_2",
+      "name": "Международное право",
+      "category": "diplomacy",
+      "scienceCost": 100,
+      "prerequisiteIds": [
+        "tech_diplomacy_1"
+      ],
+      "unlocksBuildingIds": [],
+      "bonusCategories": [
+        "diplomacy"
+      ],
+      "globalBonusMultiplier": 1.1
+    },
+    {
+      "id": "tech_synergy_1",
+      "name": "Картография",
+      "category": "science",
+      "scienceCost": 80,
+      "prerequisiteIds": [
+        "tech_science_1",
+        "tech_trade_1"
+      ],
+      "unlocksBuildingIds": [],
+      "bonusCategories": [
+        "science",
+        "trade"
+      ],
+      "globalBonusMultiplier": 1.1
+    },
+    {
+      "id": "tech_synergy_2",
+      "name": "Государственное управление",
+      "category": "industry",
+      "scienceCost": 80,
+      "prerequisiteIds": [
+        "tech_industry_1",
+        "tech_diplomacy_1"
+      ],
+      "unlocksBuildingIds": [],
+      "bonusCategories": [
+        "industry",
+        "diplomacy"
+      ],
+      "globalBonusMultiplier": 1.1
+    }
+  ]
+}

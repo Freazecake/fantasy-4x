@@ -1,7 +1,7 @@
 #include "core/Building.hpp"
 
 Building::Building()
-    : m_id(""), m_name(""), m_category(""), m_modifiers(), m_cost(0), m_isresearched(false), m_unlocksUnitIds(), m_removesUntrainedPenalty(false)
+    : m_id(""), m_name(""), m_category(""), m_modifiers(), m_cost(0), m_isunlocked(false), m_unlocksUnitIds(), m_removesUntrainedPenalty(false)
 {
 }
 
@@ -53,13 +53,23 @@ std::string Building::toString() const
     std::string result = "Building: " +
                          m_name + " (ID: " + m_id + ", Category: " +
                          m_category + ", Cost: " + std::to_string(m_cost) +
-                         ", Researched: " + (m_isresearched ? "True" : "False") +
+                         ", Researched: " + (m_isunlocked ? "True" : "False") +
                          ", Removes Untrained Penalty: " + (m_removesUntrainedPenalty ? "True" : "False") + ")";
     result += "\n" + m_modifiers.toString();
     result += "\nUnlocks Units: ";
     for (const auto &unitId : m_unlocksUnitIds)
     {
         result += unitId + ", ";
+    }
+    return result;
+}
+
+std::vector<Building> Building::loadAllFromJson(const json &arrayNode)
+{
+    std::vector<Building> result;
+    for (const auto &obj : arrayNode)
+    {
+        result.push_back(Building::loadFromJson(obj));
     }
     return result;
 }

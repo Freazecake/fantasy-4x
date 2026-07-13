@@ -23,7 +23,7 @@ private:
     std::string m_category;
     Modifiers m_modifiers;
     int m_cost = 0;
-    bool m_isresearched = false;
+    bool m_isunlocked = false;
     std::vector<std::string> m_unlocksUnitIds;
     bool m_removesUntrainedPenalty = false;
 
@@ -31,14 +31,15 @@ public:
     Building();
     Building(const json &obj);
     static Building loadFromJson(const json &obj);
+    static std::vector<Building> loadAllFromJson(const json &arrayNode);
 
     std::string getId() const { return m_id; }
     std::string getName() const { return m_name; }
     std::string getCategory() const { return m_category; }
     Modifiers getModifiers() const { return m_modifiers; }
     int getCost() const { return m_cost; }
-    bool isResearched() const { return m_isresearched; }
-    void setResearched(bool researched) { m_isresearched = researched; }
+    bool isUnlocked() const { return m_isunlocked; }
+    void setUnlocked(bool unlocked) { m_isunlocked = unlocked; }
     const std::vector<std::string> &getUnlocksUnitIds() const { return m_unlocksUnitIds; }
     bool removesUntrainedPenalty() const { return m_removesUntrainedPenalty; }
 
