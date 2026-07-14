@@ -13,3 +13,13 @@ Hero Hero::loadFromJson(const json &obj)
     r.m_sphere = r.m_bonusMultiplier.findMaxModifier(r.m_bonusMultiplier).first;
     return r;
 }
+
+std::vector<Hero> Hero::loadAllFronJson(const json &arr)
+{
+    std::vector<Hero> heroes;
+    for (const auto &obj : arr["heroes"])
+    {
+        heroes.push_back(Hero::loadFromJson(obj));
+    }
+    return heroes;
+}

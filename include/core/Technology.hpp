@@ -24,7 +24,7 @@ private:
 
 public:
     Technology();
-    Technology(const json &obj) { Technology::loadFromJson(obj); };
+    Technology(const json &obj) { *this = Technology::loadFromJson(obj); };
     ~Technology() = default;
     static Technology loadFromJson(const json &);
     static std::vector<Technology> loadAllFromJson(const json &);

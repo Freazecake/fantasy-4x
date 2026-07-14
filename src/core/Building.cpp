@@ -5,7 +5,7 @@ Building::Building()
 {
 }
 
-Building::Building(const json &obj) { Building::loadFromJson(obj); }
+Building::Building(const json &obj) { *this = Building::loadFromJson(obj); }
 
 Building Building::loadFromJson(const json &obj)
 {

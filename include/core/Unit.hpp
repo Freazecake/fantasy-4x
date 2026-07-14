@@ -4,15 +4,9 @@
 #include <vector>
 
 #include "external/json.hpp"
+#include "Common.hpp"
 
 using json = nlohmann::json;
-
-struct UnitStats
-{
-    float attack = 0.0f;
-    float defense = 0.0f;
-    float health = 0.0f;
-};
 
 class Unit
 {
@@ -27,7 +21,7 @@ private:
 
 public:
     Unit() = default;
-    Unit(const json &obj) { Unit::loadFromJson(obj); }
+    Unit(const json &obj) { *this = Unit::loadFromJson(obj); }
     ~Unit() = default;
 
     static Unit loadFromJson(const json &obj);

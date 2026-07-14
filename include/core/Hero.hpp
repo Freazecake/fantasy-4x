@@ -14,9 +14,11 @@ private:
 
 public:
     Hero();
-    Hero(const json &obj) { Hero::loadFromJson(obj); }
+    Hero(const json &obj) { *this = Hero::loadFromJson(obj); }
     ~Hero() = default;
     static Hero loadFromJson(const json &obj);
+    static std::vector<Hero> loadAllFronJson(const json &arr);
+
     std::string getName() const { return m_name; }
     Modifiers getModifiers() const { return m_bonusMultiplier; }
     std::string getId() const { return m_id; }

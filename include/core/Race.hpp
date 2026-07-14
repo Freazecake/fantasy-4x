@@ -16,7 +16,7 @@ private:
 
 public:
     Race();
-    Race(const json &obj) { Race::loadFromJson(obj); }
+    Race(const json &obj) { *this = Race::loadFromJson(obj); }
     ~Race() = default;
     static Race loadFromJson(const json &obj);
     std::string getName() const { return m_name; }
