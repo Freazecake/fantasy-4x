@@ -1,8 +1,12 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
-#include "Race.hpp"
+#include "Common.hpp"
+#include "external/json.hpp"
+
+using json = nlohmann::json;
 
 class Hero
 {
@@ -17,9 +21,12 @@ public:
     Hero(const json &obj) { *this = Hero::loadFromJson(obj); }
     ~Hero() = default;
     static Hero loadFromJson(const json &obj);
-    static std::vector<Hero> loadAllFronJson(const json &arr);
+    static std::vector<Hero> loadAllFromJson(const json &arr);
 
     std::string getName() const { return m_name; }
     Modifiers getModifiers() const { return m_bonusMultiplier; }
     std::string getId() const { return m_id; }
+    Sphere getSphere() const { return m_sphere; }
+
+    std::string toString() const;
 };

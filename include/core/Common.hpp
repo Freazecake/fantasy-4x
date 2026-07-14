@@ -15,6 +15,33 @@ enum class Sphere
     Growth
 };
 
+inline std::string sphereToString(Sphere s)
+{
+    std::string result;
+    switch (s)
+    {
+    case Sphere::Science:
+        result = "science";
+        break;
+    case Sphere::Industry:
+        result = "industry";
+        break;
+    case Sphere::Trade:
+        result = "trade";
+        break;
+    case Sphere::Diplomacy:
+        result = "diplomacy";
+        break;
+    case Sphere::Military:
+        result = "military";
+        break;
+    case Sphere::Growth:
+        result = "growth";
+        break;
+    }
+    return result;
+}
+
 struct Modifiers
 {
     float science = 1.0f;

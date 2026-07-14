@@ -1,0 +1,64 @@
+{
+    "heroes": [
+        {
+            "id": "hero_archivist_solus",
+            "name": "Архивариус Солус",
+            "modifiers": {
+                "science": 1.30,
+                "industry": 1.08,
+                "trade": 1.08,
+                "diplomacy": 1.08,
+                "military": 1.08,
+                "growth": 1.0
+            }
+        },
+        {
+            "id": "hero_grendel_ironforge",
+            "name": "Мастер Грендель Молотобой",
+            "modifiers": {
+                "science": 1.08,
+                "industry": 1.30,
+                "trade": 1.08,
+                "diplomacy": 1.08,
+                "military": 1.08,
+                "growth": 1.0
+            }
+        },
+        {
+            "id": "hero_iona_goldweigher",
+            "name": "Купец Иона Златоцен",
+            "modifiers": {
+                "science": 1.08,
+                "industry": 1.08,
+                "trade": 1.30,
+                "diplomacy": 1.08,
+                "military": 1.08,
+                "growth": 1.0
+            }
+        },
+        {
+            "id": "hero_lira_clearvoice",
+            "name": "Посланница Лира Ясноголос",
+            "modifiers": {
+                "science": 1.08,
+                "industry": 1.08,
+                "trade": 1.08,
+                "diplomacy": 1.30,
+                "military": 1.08,
+                "growth": 1.0
+            }
+        },
+        {
+            "id": "hero_kagran_ironclad",
+            "name": "Полководец Кагран Стальная Хватка",
+            "modifiers": {
+                "science": 1.08,
+                "industry": 1.08,
+                "trade": 1.08,
+                "diplomacy": 1.08,
+                "military": 1.30,
+                "growth": 1.0
+            }
+        }
+    ]
+}

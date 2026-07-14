@@ -14,12 +14,21 @@ Hero Hero::loadFromJson(const json &obj)
     return r;
 }
 
-std::vector<Hero> Hero::loadAllFronJson(const json &arr)
+std::vector<Hero> Hero::loadAllFromJson(const json &arr)
 {
     std::vector<Hero> heroes;
-    for (const auto &obj : arr["heroes"])
+    for (const auto &obj : arr)
     {
         heroes.push_back(Hero::loadFromJson(obj));
     }
     return heroes;
+}
+
+std::string Hero::toString() const
+{
+    std::string result = "Hero: " +
+                         m_name + " (ID: " + m_id + ", Sphere: " +
+                         sphereToString(m_sphere) + ")";
+    result += "\n" + m_bonusMultiplier.toString();
+    return result;
 }
