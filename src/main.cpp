@@ -10,7 +10,7 @@ int main()
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);
 
-    std::ifstream file("../data/units.json");
+    std::ifstream file("../assets/units.json");
     json unitsJson = json::parse(file);
     std::vector<Unit> units = Unit::loadAllFromJson(unitsJson["units"]);
 

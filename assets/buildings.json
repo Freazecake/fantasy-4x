@@ -89,7 +89,8 @@
       "bonusMultiplier": 0.0,
       "industryCost": 60,
       "unlocksUnitIds": [
-        "unit_veteran_warrior"
+        "swordsman",
+        "archer"
       ],
       "removesUntrainedPenalty": true
     }
