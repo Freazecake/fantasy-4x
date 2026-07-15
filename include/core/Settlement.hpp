@@ -4,6 +4,8 @@
 
 #include "Tile.hpp"
 #include "Common.hpp"
+#include "Building.hpp"
+#include "Military.hpp"
 
 struct PopulationAllocation
 {
@@ -60,6 +62,18 @@ enum class SettlementType
     Capital,
 };
 
+struct BuildingQueueItem
+{
+    Building building;
+    int investedIndustry = 0;
+
+    int remainingCost() const
+    {
+        int need = building.getCost() - investedIndustry;
+        return need > 0 ? need : 0;
+    }
+};
+
 class Settlement
 {
 private:
@@ -68,6 +82,12 @@ private:
     int m_ownerId;
     int m_populationCount;
     PopulationAllocation m_population;
+
+    std::vector<Building> m_builtBuildings;
+    std::vector<BuildingQueueItem> m_buildingQueue;
+
+    std::vector<Unit> m_garrison;
+    std::vector<RecruitmentItem> m_recruitmentQueue;
 
 public:
     Settlement();
@@ -91,6 +111,17 @@ public:
     void assignFromIdle(Sphere sphere, int amount);
     void unassignToIdle(Sphere sphere, int amount);
     void removePopulationPermanently(int amount);
+
+    void queueBuilding(const Building &building);
+    std::vector<Building> progressBuildingQueue(int industryPoints);
+    const std::vector<Building> &builtBuildings() const { return m_builtBuildings; }
+    const std::vector<BuildingQueueItem> &buildingQueue() const { return m_buildingQueue; }
+    bool hasBuilt(const std::string &buildingId) const;
+
+    void queueUnitRecruitment(const Unit &unit);
+    std::vector<Unit> progressRecruitmentQueue(int recruitPoints);
+    const std::vector<Unit> &garrison() const { return m_garrison; }
+    const std::vector<RecruitmentItem> &recruitmentQueue() const { return m_recruitmentQueue; }
 
     std::string debugString() const;
 };

@@ -42,6 +42,22 @@ inline std::string sphereToString(Sphere s)
     return result;
 }
 
+inline Sphere sphereFromString(std::string s)
+{
+    if (s == "science")
+        return Sphere::Science;
+    if (s == "industry")
+        return Sphere::Industry;
+    if (s == "trade")
+        return Sphere::Trade;
+    if (s == "diplomacy")
+        return Sphere::Diplomacy;
+    if (s == "military")
+        return Sphere::Military;
+    if (s == "growth")
+        return Sphere::Growth;
+}
+
 struct Modifiers
 {
     float science = 1.0f;

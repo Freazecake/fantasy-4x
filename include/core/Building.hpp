@@ -8,18 +8,11 @@
 
 using json = nlohmann::json;
 
-// enum class BuildingCategory
-// {
-//     Economic,
-//     Military,
-// };
-
 class Building
 {
 private:
     std::string m_id;
     std::string m_name;
-    // BuildingCategory m_category;
     std::string m_category;
     Modifiers m_modifiers;
     int m_cost = 0;

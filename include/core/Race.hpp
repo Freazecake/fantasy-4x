@@ -10,6 +10,7 @@ using json = nlohmann::json;
 class Race
 {
 private:
+    std::string m_id;
     std::string m_name;
     Modifiers m_modifiers;
     std::string m_startingSettlementType;
@@ -19,6 +20,8 @@ public:
     Race(const json &obj) { *this = Race::loadFromJson(obj); }
     ~Race() = default;
     static Race loadFromJson(const json &obj);
+    std::string getId() const { return m_id; }
     std::string getName() const { return m_name; }
     Modifiers getModifiers() const { return m_modifiers; }
+    std::string getStartingSettlementType() const { return m_startingSettlementType; }
 };

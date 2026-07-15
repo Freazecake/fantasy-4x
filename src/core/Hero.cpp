@@ -7,6 +7,7 @@ Hero Hero::loadFromJson(const json &obj)
     Hero r;
     r.m_name = obj["name"].get<std::string>();
     r.m_id = obj["id"].get<std::string>();
+    r.m_raceId = obj["raceId"].get<std::string>();
     auto m = obj["modifiers"];
     r.m_bonusMultiplier = {m["science"], m["industry"], m["trade"],
                            m["diplomacy"], m["military"], m["growth"]};
@@ -27,8 +28,8 @@ std::vector<Hero> Hero::loadAllFromJson(const json &arr)
 std::string Hero::toString() const
 {
     std::string result = "Hero: " +
-                         m_name + " (ID: " + m_id + ", Sphere: " +
-                         sphereToString(m_sphere) + ")";
+                         m_name + " (ID: " + m_id + ", Race: " + m_raceId +
+                         ", Sphere: " + sphereToString(m_sphere) + ")";
     result += "\n" + m_bonusMultiplier.toString();
     return result;
 }

@@ -5,6 +5,7 @@ Race::Race() {}
 Race Race::loadFromJson(const json &obj)
 {
     Race r;
+    r.m_id = obj["id"].get<std::string>();
     r.m_name = obj["name"].get<std::string>();
     r.m_startingSettlementType = obj["startingSettlementType"].get<std::string>();
     auto m = obj["modifiers"];

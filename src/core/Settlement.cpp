@@ -94,3 +94,92 @@ std::string Settlement::debugString() const
 
     return out.str();
 }
+
+void Settlement::queueBuilding(const Building &building)
+{
+    BuildingQueueItem item;
+    item.building = building;
+    m_buildingQueue.push_back(item);
+}
+
+std::vector<Building> Settlement::progressBuildingQueue(int industryPoints)
+{
+    std::vector<Building> completed;
+    int remaining = industryPoints;
+
+    while (remaining > 0 && !m_buildingQueue.empty())
+    {
+        BuildingQueueItem &item = m_buildingQueue.front();
+        int need = item.remainingCost();
+
+        if (remaining < need)
+        {
+            item.investedIndustry += remaining;
+            remaining = 0;
+        }
+        else
+        {
+            remaining -= need;
+            item.investedIndustry += need;
+            m_builtBuildings.push_back(item.building);
+            completed.push_back(item.building);
+            m_buildingQueue.erase(m_buildingQueue.begin());
+        }
+    }
+
+    return completed;
+}
+
+bool Settlement::hasBuilt(const std::string &buildingId) const
+{
+    for (const auto &b : m_builtBuildings)
+    {
+        if (b.getId() == buildingId)
+            return true;
+    }
+    return false;
+}
+
+void Settlement::queueUnitRecruitment(const Unit &unit)
+{
+    RecruitmentItem item = Military::queueUnit(unit, m_builtBuildings);
+
+    if (unit.getPopulationCost() > m_population.idle)
+    {
+        throw std::runtime_error(
+            "Settlement::queueUnitRecruitment: недостаточно свободного населения для найма '" +
+            unit.getId() + "' (нужно " + std::to_string(unit.getPopulationCost()) +
+            ", доступно " + std::to_string(m_population.idle) + ")");
+    }
+    removePopulationPermanently(unit.getPopulationCost());
+
+    m_recruitmentQueue.push_back(item);
+}
+
+std::vector<Unit> Settlement::progressRecruitmentQueue(int recruitPoints)
+{
+    std::vector<Unit> completed;
+    int remaining = recruitPoints;
+
+    while (remaining > 0 && !m_recruitmentQueue.empty())
+    {
+        RecruitmentItem &item = m_recruitmentQueue.front();
+        int need = item.remainingCost();
+
+        if (remaining < need)
+        {
+            item.investedPoints += remaining;
+            remaining = 0;
+        }
+        else
+        {
+            remaining -= need;
+            item.investedPoints += need;
+            m_garrison.push_back(item.unit);
+            completed.push_back(item.unit);
+            m_recruitmentQueue.erase(m_recruitmentQueue.begin());
+        }
+    }
+
+    return completed;
+}
