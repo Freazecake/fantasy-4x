@@ -5,33 +5,25 @@
 // В отличие от остальных test_*.cpp (которые тестируют классы на
 // синтетических json-объектах, собранных прямо в коде), этот файл грузит
 // НАСТОЯЩИЕ файлы из assets/ — races.json, buildings.json,
-// technologies.json, units.json — и проверяет:
+// technologies.json, units.json, heroes.json, political_actions.json — и
+// проверяет:
 //   1) что все они парсятся без исключений;
 //   2) что все ссылки между файлами (unlocksBuildingIds -> buildings,
 //      unlocksUnitIds -> units, requiredBuildingId -> buildings,
-//      prerequisiteIds -> technologies) указывают на существующие id;
+//      prerequisiteIds -> technologies, heroes[].raceId -> races) указывают
+//      на существующие id;
 //   3) что граф зависимостей технологий (prerequisiteIds) не содержит циклов.
 //
 // Путь к assets/ передаётся через макрос ASSETS_DIR (см. tests/CMakeLists.txt),
 // чтобы тесты не зависели от текущей рабочей директории при запуске.
-//
-// ВАЖНО: этот файл намеренно НЕ подключает core/Unit.hpp. В проекте сейчас
-// структура UnitStats определена дважды — один раз в core/Common.hpp,
-// второй раз (полностью независимо) в core/Unit.hpp. Пока Unit.hpp не
-// подключался вместе с файлами, которые тянут Common.hpp (Building.hpp,
-// Race.hpp, Technology.hpp), это было незаметно. Но стоит подключить их в
-// одной единице трансляции — компиляция падает с "redefinition of struct
-// UnitStats". Проверки по юнитам в этом файле поэтому читают units.json
-// напрямую как JSON (без создания объектов Unit), а round-trip тест
-// Unit::loadAllFromJson вынесен в test_unit.cpp, где Building.hpp не
-// подключается. Исправление в проекте — одна строка: убрать повторное
-// объявление struct UnitStats из Unit.hpp и подключить туда Common.hpp.
 
 #include "test_framework.hpp"
 
 #include "core/Building.hpp"
 #include "core/Race.hpp"
 #include "core/Technology.hpp"
+#include "core/Hero.hpp"
+#include "core/PoliticalAction.hpp"
 
 #include <fstream>
 #include <unordered_map>
@@ -215,12 +207,9 @@ TEST_CASE("Technology.unlocksBuildingIds: все ссылки указывают
     }
 }
 
-// Этот тест сейчас ПАДАЕТ и указывает на реальное рассогласование данных:
-// buildings.json -> "barracks" -> unlocksUnitIds содержит "unit_veteran_warrior",
-// но такого id нет ни в одном юните в units.json (там только militia/swordsman/archer).
-// Похоже на неактуальный id, оставшийся от более раннего варианта units.json —
-// стоит поправить на реальные id, например ["swordsman", "archer"], либо
-// завести юнита unit_veteran_warrior, если он планировался отдельно.
+// Раньше этот тест падал: buildings.json -> "barracks" -> unlocksUnitIds
+// содержал несуществующий id "unit_veteran_warrior". Баг исправлен (теперь
+// там ["swordsman", "archer"]) — тест оставлен как регресс-проверка.
 TEST_CASE("Building.unlocksUnitIds: все ссылки указывают на существующие id юнитов")
 {
     json buildingassets = loadJsonFile("buildings.json");
@@ -291,4 +280,80 @@ TEST_CASE("assets/buildings.json: каждая постройка грузитс
         CHECK(!building.getId().empty());
         CHECK(building.getCost() >= 0);
     }
+}
+
+TEST_CASE("assets/heroes.json парсится, содержит ровно 5 героев с уникальными id")
+{
+    json assets = loadJsonFile("heroes.json");
+    const auto &heroesArr = assets.at("heroes");
+
+    CHECK(heroesArr.size() == 5u);
+
+    std::unordered_set<std::string> ids;
+    for (const auto &h : heroesArr)
+        ids.insert(h.at("id").get<std::string>());
+    CHECK(ids.size() == heroesArr.size());
+}
+
+TEST_CASE("assets/heroes.json: raceId у каждого героя указывает на существующую расу, все расы покрыты по одному разу")
+{
+    json racesAssets = loadJsonFile("races.json");
+    json heroesAssets = loadJsonFile("heroes.json");
+
+    std::unordered_set<std::string> raceIds;
+    for (const auto &r : racesAssets.at("races"))
+        raceIds.insert(r.at("id").get<std::string>());
+
+    std::unordered_set<std::string> heroRaceIds;
+    for (const auto &h : heroesAssets.at("heroes"))
+    {
+        std::string raceId = h.at("raceId").get<std::string>();
+        if (raceIds.count(raceId) == 0)
+        {
+            testfw::reportFailure("heroes.json: '" + h.at("id").get<std::string>() +
+                                      "' ссылается на несуществующую расу '" + raceId + "'",
+                                  __FILE__, __LINE__);
+        }
+        heroRaceIds.insert(raceId);
+    }
+
+    // "1 герой = 1 раса": пять героев должны покрывать все пять рас без повторов.
+    CHECK(heroRaceIds.size() == raceIds.size());
+}
+
+TEST_CASE("assets/heroes.json: каждый герой грузится в Hero без исключений")
+{
+    json assets = loadJsonFile("heroes.json");
+
+    std::vector<Hero> heroes = Hero::loadAllFromJson(assets.at("heroes"));
+    CHECK(heroes.size() == assets.at("heroes").size());
+}
+
+TEST_CASE("assets/political_actions.json парсится, содержит 4 действия с уникальными id, включая politicalConquest")
+{
+    json assets = loadJsonFile("political_actions.json");
+    const auto &actionsArr = assets.at("politicalActions");
+
+    CHECK(actionsArr.size() == 4u);
+
+    std::unordered_set<std::string> ids;
+    bool hasConquest = false;
+    for (const auto &a : actionsArr)
+    {
+        ids.insert(a.at("id").get<std::string>());
+        if (a.at("type").get<std::string>() == "politicalConquest")
+            hasConquest = true;
+    }
+    CHECK(ids.size() == actionsArr.size());
+    CHECK(hasConquest);  // раздел 2.5 гайда: политическое поглощение — обязательный путь победы
+}
+
+TEST_CASE("assets/political_actions.json: каждое действие грузится в PoliticalAction без исключений")
+{
+    json assets = loadJsonFile("political_actions.json");
+
+    std::vector<PoliticalAction> actions = PoliticalAction::loadAllFromJson(assets.at("politicalActions"));
+    CHECK(actions.size() == assets.at("politicalActions").size());
+    for (const auto &a : actions)
+        CHECK(a.getCost() >= 0);
 }

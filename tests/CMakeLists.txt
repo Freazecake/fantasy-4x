@@ -22,21 +22,26 @@ endif()
 set(GAME_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 # Намеренно НЕ используется file(GLOB ...) по всему src/core/, как в корневом
-# CMakeLists.txt: часть классов там (GameEngine, GameState, Player, Economy,
-# Hero) относится к неделям 3-5 и на момент недели 2 ещё не реализована
-# (пустые .cpp), а main.cpp вообще требует <Windows.h>. Тесты недели 2
-# собирают только то, что реально протестировано в этой папке — Race, Tile,
-# Map, Settlement, Building, Technology, Unit. Когда допишешь Economy/Hero
-# и т.д. и добавишь для них тесты — добавь соответствующие .cpp сюда же.
+# CMakeLists.txt: GameEngine и GameState пока пустые заглушки (относятся к
+# неделям 4-5), а main.cpp вообще требует <Windows.h>. Тесты собирают только
+# то, что реально протестировано в этой папке.
 add_executable(game_tests
     main.cpp
     test_race.cpp
     test_map_tile.cpp
     test_settlement.cpp
+    test_settlement_queues.cpp
     test_building.cpp
     test_technology.cpp
     test_unit.cpp
+    test_hero.cpp
+    test_economy.cpp
+    test_military.cpp
+    test_political_action.cpp
+    test_trade_market.cpp
+    test_player.cpp
     test_data_integrity.cpp
+    test_week3_simulation.cpp
 
     ${GAME_ROOT}/src/core/Race.cpp
     ${GAME_ROOT}/src/core/Tile.cpp
@@ -45,6 +50,12 @@ add_executable(game_tests
     ${GAME_ROOT}/src/core/Building.cpp
     ${GAME_ROOT}/src/core/Technology.cpp
     ${GAME_ROOT}/src/core/Unit.cpp
+    ${GAME_ROOT}/src/core/Hero.cpp
+    ${GAME_ROOT}/src/core/Economy.cpp
+    ${GAME_ROOT}/src/core/Military.cpp
+    ${GAME_ROOT}/src/core/PoliticalAction.cpp
+    ${GAME_ROOT}/src/core/TradeMarket.cpp
+    ${GAME_ROOT}/src/core/Player.cpp
 )
 
 target_include_directories(game_tests PRIVATE
