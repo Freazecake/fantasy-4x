@@ -16,6 +16,3 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     src
     assets
 )
-
-enable_testing()
-add_subdirectory(tests)
