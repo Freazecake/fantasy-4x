@@ -3,25 +3,29 @@
 #include <string>
 
 #include "external/json.hpp"
-#include "Common.hpp"
 
 using json = nlohmann::json;
+
+struct RaceModifiers
+{
+    float science = 1.0f;
+    float industry = 1.0f;
+    float trade = 1.0f;
+    float diplomacy = 1.0f;
+    float military = 1.0f;
+    float growth = 1.0f;
+};
 
 class Race
 {
 private:
-    std::string m_id;
     std::string m_name;
-    Modifiers m_modifiers;
-    std::string m_startingSettlementType;
-
+    RaceModifiers m_modifiers;
+    std::string m_startingSettlementType; // "village", "cave", "fortress"...
 public:
-    Race();
-    Race(const json &obj) { *this = Race::loadFromJson(obj); }
+    Race(const json &obj) { Race::loadFromJson(obj); }
     ~Race() = default;
     static Race loadFromJson(const json &obj);
-    std::string getId() const { return m_id; }
     std::string getName() const { return m_name; }
-    Modifiers getModifiers() const { return m_modifiers; }
-    std::string getStartingSettlementType() const { return m_startingSettlementType; }
+    RaceModifiers getModifiers() const { return m_modifiers; }
 };
