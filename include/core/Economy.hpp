@@ -1,7 +1,12 @@
 #pragma once
 
+#include <string>
+#include <vector>
+
 #include "Settlement.hpp"
-#include "Race.hpp"
+#include "Building.hpp"
+#include "Hero.hpp"
+#include "Common.hpp"
 
 struct Resources
 {
@@ -12,8 +17,16 @@ struct Resources
     float military = 0;
     float growth = 0;
 
+    Resources();
+    Resources(float);
+    Resources(const Resources &);
     void operator+=(const Resources &);
     Resources operator*(float);
+    Resources operator*(const Modifiers &);
+    Resources &operator=(Resources &&);
+    Resources &operator=(const Resources &);
+
+    std::string toString() const;
 };
 
 class Economy
@@ -22,6 +35,19 @@ private:
     Resources m_res;
 
 public:
-    static Resources computeSettlementOutput(const Settlement &s, const RaceModifiers &mods);
+    Economy();
+    Economy(const Modifiers &);
+    Economy(const Economy &);
+
+    static Resources computeSettlementIncome(const Settlement &settlement,
+                                             const Modifiers &raceModifiers,
+                                             const std::vector<Building> &builtBuildings,
+                                             const std::vector<Hero> &heroes);
+
     void accumulate(const Resources &);
+    const Resources &totals() const { return m_res; }
+
+    bool trySpendTrade(int amount);
+    bool trySpendDiplomacy(int amount);
+    void addResource(const std::string &resourceType, int amount);
 };

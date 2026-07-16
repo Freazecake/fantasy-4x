@@ -1,0 +1,98 @@
+{
+  "_comment": "Building больше не хранит requiredTechId — какая технология открывает здание, определяется только со стороны Technology.unlocksBuildingIds (см. technologies.json). resourceType используется только при загрузке, чтобы понять, в какое поле Modifiers записать bonusMultiplier — самим классом Building не хранится отдельно.",
+  "buildings": [
+    {
+      "id": "library",
+      "name": "Библиотека",
+      "category": "economic",
+      "resourceType": "science",
+      "bonusMultiplier": 1.15,
+      "industryCost": 40,
+      "unlocksUnitIds": [],
+      "removesUntrainedPenalty": false
+    },
+    {
+      "id": "observatory",
+      "name": "Обсерватория",
+      "category": "economic",
+      "resourceType": "science",
+      "bonusMultiplier": 1.3,
+      "industryCost": 90,
+      "unlocksUnitIds": [],
+      "removesUntrainedPenalty": false
+    },
+    {
+      "id": "workshop",
+      "name": "Мастерская",
+      "category": "economic",
+      "resourceType": "industry",
+      "bonusMultiplier": 1.15,
+      "industryCost": 40,
+      "unlocksUnitIds": [],
+      "removesUntrainedPenalty": false
+    },
+    {
+      "id": "forge",
+      "name": "Кузница",
+      "category": "economic",
+      "resourceType": "industry",
+      "bonusMultiplier": 1.3,
+      "industryCost": 90,
+      "unlocksUnitIds": [],
+      "removesUntrainedPenalty": false
+    },
+    {
+      "id": "market",
+      "name": "Рынок",
+      "category": "economic",
+      "resourceType": "trade",
+      "bonusMultiplier": 1.15,
+      "industryCost": 40,
+      "unlocksUnitIds": [],
+      "removesUntrainedPenalty": false
+    },
+    {
+      "id": "trade_house",
+      "name": "Торговый дом",
+      "category": "economic",
+      "resourceType": "trade",
+      "bonusMultiplier": 1.3,
+      "industryCost": 90,
+      "unlocksUnitIds": [],
+      "removesUntrainedPenalty": false
+    },
+    {
+      "id": "embassy",
+      "name": "Посольство",
+      "category": "economic",
+      "resourceType": "diplomacy",
+      "bonusMultiplier": 1.15,
+      "industryCost": 40,
+      "unlocksUnitIds": [],
+      "removesUntrainedPenalty": false
+    },
+    {
+      "id": "chancellery",
+      "name": "Канцелярия",
+      "category": "economic",
+      "resourceType": "diplomacy",
+      "bonusMultiplier": 1.3,
+      "industryCost": 90,
+      "unlocksUnitIds": [],
+      "removesUntrainedPenalty": false
+    },
+    {
+      "id": "barracks",
+      "name": "Казарма",
+      "category": "military",
+      "resourceType": "",
+      "bonusMultiplier": 0.0,
+      "industryCost": 60,
+      "unlocksUnitIds": [
+        "swordsman",
+        "archer"
+      ],
+      "removesUntrainedPenalty": true
+    }
+  ]
+}
