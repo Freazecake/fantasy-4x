@@ -11,6 +11,4 @@ private:
 
 public:
     Map();
-    static Map generateMap(int width, int height);
-    const std::vector<Tile> &getMap() const { return m_map; }
 };

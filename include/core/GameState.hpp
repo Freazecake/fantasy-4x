@@ -25,6 +25,4 @@ public:
     const std::vector<Player> &players() const { return m_players; }
     const Map &map() const { return m_map; }
     int turnNumber() const { return m_turnNumber; }
-    void nextPhase() { m_globalPhase = static_cast<GlobalPhase>(static_cast<int>(m_globalPhase) + 1); }
-    void nextTurn();
 };
