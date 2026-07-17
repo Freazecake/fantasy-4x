@@ -74,6 +74,18 @@ struct BuildingQueueItem
     }
 };
 
+struct BuildingProgressResult
+{
+    std::vector<Building> completed;
+    int spentIndustry = 0;
+};
+
+struct RecruitmentProgressResult
+{
+    std::vector<Unit> completed;
+    int spentIndustry = 0;
+};
+
 class Settlement
 {
 private:
@@ -113,13 +125,13 @@ public:
     void removePopulationPermanently(int amount);
 
     void queueBuilding(const Building &building);
-    std::vector<Building> progressBuildingQueue(int industryPoints);
+    BuildingProgressResult progressBuildingQueue(int industryPoints);
     const std::vector<Building> &builtBuildings() const { return m_builtBuildings; }
     const std::vector<BuildingQueueItem> &buildingQueue() const { return m_buildingQueue; }
     bool hasBuilt(const std::string &buildingId) const;
 
     void queueUnitRecruitment(const Unit &unit);
-    std::vector<Unit> progressRecruitmentQueue(int recruitPoints);
+    RecruitmentProgressResult progressRecruitmentQueue(int industryPoints);
     const std::vector<Unit> &garrison() const { return m_garrison; }
     const std::vector<RecruitmentItem> &recruitmentQueue() const { return m_recruitmentQueue; }
 

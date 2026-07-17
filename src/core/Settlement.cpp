@@ -102,9 +102,9 @@ void Settlement::queueBuilding(const Building &building)
     m_buildingQueue.push_back(item);
 }
 
-std::vector<Building> Settlement::progressBuildingQueue(int industryPoints)
+BuildingProgressResult Settlement::progressBuildingQueue(int industryPoints)
 {
-    std::vector<Building> completed;
+    BuildingProgressResult result;
     int remaining = industryPoints;
 
     while (remaining > 0 && !m_buildingQueue.empty())
@@ -115,19 +115,21 @@ std::vector<Building> Settlement::progressBuildingQueue(int industryPoints)
         if (remaining < need)
         {
             item.investedIndustry += remaining;
+            result.spentIndustry += remaining;
             remaining = 0;
         }
         else
         {
             remaining -= need;
             item.investedIndustry += need;
+            result.spentIndustry += need;
             m_builtBuildings.push_back(item.building);
-            completed.push_back(item.building);
+            result.completed.push_back(item.building);
             m_buildingQueue.erase(m_buildingQueue.begin());
         }
     }
 
-    return completed;
+    return result;
 }
 
 bool Settlement::hasBuilt(const std::string &buildingId) const
@@ -156,10 +158,10 @@ void Settlement::queueUnitRecruitment(const Unit &unit)
     m_recruitmentQueue.push_back(item);
 }
 
-std::vector<Unit> Settlement::progressRecruitmentQueue(int recruitPoints)
+RecruitmentProgressResult Settlement::progressRecruitmentQueue(int industryPoints)
 {
-    std::vector<Unit> completed;
-    int remaining = recruitPoints;
+    RecruitmentProgressResult result;
+    int remaining = industryPoints;
 
     while (remaining > 0 && !m_recruitmentQueue.empty())
     {
@@ -169,17 +171,19 @@ std::vector<Unit> Settlement::progressRecruitmentQueue(int recruitPoints)
         if (remaining < need)
         {
             item.investedPoints += remaining;
+            result.spentIndustry += remaining;
             remaining = 0;
         }
         else
         {
             remaining -= need;
             item.investedPoints += need;
+            result.spentIndustry += need;
             m_garrison.push_back(item.unit);
-            completed.push_back(item.unit);
+            result.completed.push_back(item.unit);
             m_recruitmentQueue.erase(m_recruitmentQueue.begin());
         }
     }
 
-    return completed;
+    return result;
 }

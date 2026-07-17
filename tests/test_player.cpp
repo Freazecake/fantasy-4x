@@ -112,6 +112,7 @@ TEST_CASE("Player::advanceTurn: доход считается по всем по
 
     p.advanceTurn();
 
+    // Без очередей вся промышленность банкуется
     CHECK_NEAR(p.resources().industry, 40 * 1.8f, 0.01f);
 }
 

@@ -123,7 +123,8 @@ TEST_CASE("Неделя 3, день 7: симуляция 8 ходов двор�
 
     CHECK(!player.settlements()[0].hasBuilt("barracks"));
     player.settlements()[0].queueUnitRecruitment(militia);
-    std::vector<Unit> recruitedUntrained = player.settlements()[0].progressRecruitmentQueue(militia.getRecruitCost());
+    RecruitmentProgressResult recruitResultUntrained = player.settlements()[0].progressRecruitmentQueue(militia.getRecruitCost());
+    std::vector<Unit> recruitedUntrained = recruitResultUntrained.completed;
     CHECK(recruitedUntrained.size() == 1u);
 
     UnitStats untrainedStats = player.effectiveUnitStats(player.settlements()[0], recruitedUntrained[0]);
@@ -164,7 +165,8 @@ TEST_CASE("Неделя 3, день 7: симуляция 8 ходов двор�
     }
 
     player.settlements()[0].queueUnitRecruitment(swordsman);
-    std::vector<Unit> recruitedTrained = player.settlements()[0].progressRecruitmentQueue(swordsman.getRecruitCost());
+    RecruitmentProgressResult recruitResultTrained = player.settlements()[0].progressRecruitmentQueue(swordsman.getRecruitCost());
+    std::vector<Unit> recruitedTrained = recruitResultTrained.completed;
     CHECK(recruitedTrained.size() == 1u);
 
     UnitStats trainedStats = player.effectiveUnitStats(player.settlements()[0], recruitedTrained[0]);

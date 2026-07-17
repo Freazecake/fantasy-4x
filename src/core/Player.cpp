@@ -49,9 +49,17 @@ void Player::advanceTurn()
         Resources income = Economy::computeSettlementIncome(
             settlement, m_race.getModifiers(), settlement.builtBuildings(), m_heroes);
 
-        settlement.progressBuildingQueue(static_cast<int>(income.industry));
+        int industryBudget = static_cast<int>(income.industry);
 
-        totalIncome += income;
+        auto buildResult = settlement.progressBuildingQueue(industryBudget);
+        industryBudget -= buildResult.spentIndustry;
+
+        auto recruitResult = settlement.progressRecruitmentQueue(industryBudget);
+        industryBudget -= recruitResult.spentIndustry;
+
+        Resources incomeToBank = income;
+        incomeToBank.industry = static_cast<float>(industryBudget);
+        totalIncome += incomeToBank;
     }
 
     m_economy.accumulate(totalIncome);

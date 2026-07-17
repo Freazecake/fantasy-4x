@@ -41,9 +41,10 @@ TEST_CASE("Settlement::queueBuilding + progressBuildingQueue: недостато
     Settlement s(1, SettlementType::Village);
     s.queueBuilding(makeBuilding("library", 40));
 
-    std::vector<Building> completed = s.progressBuildingQueue(25);
+    BuildingProgressResult result = s.progressBuildingQueue(25);
 
-    CHECK(completed.empty());
+    CHECK(result.completed.empty());
+    CHECK(result.spentIndustry == 25);
     CHECK(s.builtBuildings().empty());
     CHECK(s.buildingQueue().size() == 1u);
     CHECK(s.buildingQueue()[0].remainingCost() == 15);
@@ -53,10 +54,11 @@ TEST_CASE("Settlement::progressBuildingQueue: ровно достаточно о
     Settlement s(1, SettlementType::Village);
     s.queueBuilding(makeBuilding("library", 40));
 
-    std::vector<Building> completed = s.progressBuildingQueue(40);
+    BuildingProgressResult result = s.progressBuildingQueue(40);
 
-    CHECK(completed.size() == 1u);
-    CHECK(completed[0].getId() == "library");
+    CHECK(result.completed.size() == 1u);
+    CHECK(result.completed[0].getId() == "library");
+    CHECK(result.spentIndustry == 40);
     CHECK(s.hasBuilt("library"));
     CHECK(s.buildingQueue().empty());
 }
@@ -66,10 +68,11 @@ TEST_CASE("Settlement::progressBuildingQueue: переполнение пере�
     s.queueBuilding(makeBuilding("library", 40));
     s.queueBuilding(makeBuilding("observatory", 90));
 
-    std::vector<Building> completed = s.progressBuildingQueue(50);  // 40 на library, 10 на observatory
+    BuildingProgressResult result = s.progressBuildingQueue(50);
 
-    CHECK(completed.size() == 1u);
-    CHECK(completed[0].getId() == "library");
+    CHECK(result.completed.size() == 1u);
+    CHECK(result.completed[0].getId() == "library");
+    CHECK(result.spentIndustry == 50);
     CHECK(s.hasBuilt("library"));
     CHECK(!s.hasBuilt("observatory"));
     CHECK(s.buildingQueue().size() == 1u);
@@ -82,9 +85,10 @@ TEST_CASE("Settlement::progressBuildingQueue: одного вызова хват
     s.queueBuilding(makeBuilding("b", 10));
     s.queueBuilding(makeBuilding("c", 10));
 
-    std::vector<Building> completed = s.progressBuildingQueue(25);
+    BuildingProgressResult result = s.progressBuildingQueue(25);
 
-    CHECK(completed.size() == 2u);  // a и b завершены, на c осталось 5 из 10
+    CHECK(result.completed.size() == 2u);
+    CHECK(result.spentIndustry == 25);
     CHECK(s.hasBuilt("a"));
     CHECK(s.hasBuilt("b"));
     CHECK(!s.hasBuilt("c"));
@@ -93,9 +97,10 @@ TEST_CASE("Settlement::progressBuildingQueue: одного вызова хват
 TEST_CASE("Settlement::progressBuildingQueue: пустая очередь ничего не делает") {
     Settlement s(1, SettlementType::Village);
 
-    std::vector<Building> completed = s.progressBuildingQueue(100);
+    BuildingProgressResult result = s.progressBuildingQueue(100);
 
-    CHECK(completed.empty());
+    CHECK(result.completed.empty());
+    CHECK(result.spentIndustry == 0);
 }
 
 // --- Очередь найма юнитов и гарнизон (день 5-6) -----------------------------
@@ -119,7 +124,6 @@ TEST_CASE("Settlement::queueUnitRecruitment: tier 1+ юнит без нужно�
     Unit swordsman = makeUnit("swordsman", 1, "barracks", 30, 50);
 
     CHECK_THROWS(s.queueUnitRecruitment(swordsman));
-    // Население не должно было списаться при неудачной попытке.
     CHECK(s.allocation().idle == 100);
 }
 
@@ -127,17 +131,17 @@ TEST_CASE("Settlement::queueUnitRecruitment: недостаточно population
     Settlement s(1, SettlementType::Village);
     s.seedInitialPopulation(20);
 
-    Unit militia = makeUnit("militia", 0, "", 15, 30);  // populationCost=30 > 20 доступных
+    Unit militia = makeUnit("militia", 0, "", 15, 30);
 
     CHECK_THROWS(s.queueUnitRecruitment(militia));
-    CHECK(s.allocation().idle == 20);  // не списалось
+    CHECK(s.allocation().idle == 20);
 }
 
 TEST_CASE("Settlement::queueUnitRecruitment: tier 1+ юнит с построенной казармой встаёт в очередь") {
     Settlement s(1, SettlementType::Village);
     s.seedInitialPopulation(100);
     s.queueBuilding(makeBuilding("barracks", 60, {"swordsman"}, true));
-    s.progressBuildingQueue(60);  // достроили казарму
+    s.progressBuildingQueue(60);
 
     Unit swordsman = makeUnit("swordsman", 1, "barracks", 30, 50);
     s.queueUnitRecruitment(swordsman);
@@ -150,9 +154,10 @@ TEST_CASE("Settlement::progressRecruitmentQueue: недостаточно очк
     s.seedInitialPopulation(100);
     s.queueUnitRecruitment(makeUnit("militia", 0, "", 15, 30));
 
-    std::vector<Unit> completed = s.progressRecruitmentQueue(10);
+    RecruitmentProgressResult result = s.progressRecruitmentQueue(10);
 
-    CHECK(completed.empty());
+    CHECK(result.completed.empty());
+    CHECK(result.spentIndustry == 10);
     CHECK(s.garrison().empty());
     CHECK(s.recruitmentQueue()[0].remainingCost() == 5);
 }
@@ -162,10 +167,11 @@ TEST_CASE("Settlement::progressRecruitmentQueue: юнит завершается
     s.seedInitialPopulation(100);
     s.queueUnitRecruitment(makeUnit("militia", 0, "", 15, 30));
 
-    std::vector<Unit> completed = s.progressRecruitmentQueue(15);
+    RecruitmentProgressResult result = s.progressRecruitmentQueue(15);
 
-    CHECK(completed.size() == 1u);
-    CHECK(completed[0].getId() == "militia");
+    CHECK(result.completed.size() == 1u);
+    CHECK(result.completed[0].getId() == "militia");
+    CHECK(result.spentIndustry == 15);
     CHECK(s.garrison().size() == 1u);
     CHECK(s.recruitmentQueue().empty());
 }
@@ -176,10 +182,11 @@ TEST_CASE("Settlement::progressRecruitmentQueue: переполнение пер
     s.queueUnitRecruitment(makeUnit("militia_1", 0, "", 15, 30));
     s.queueUnitRecruitment(makeUnit("militia_2", 0, "", 15, 30));
 
-    std::vector<Unit> completed = s.progressRecruitmentQueue(20);  // 15 на первого, 5 на второго
+    RecruitmentProgressResult result = s.progressRecruitmentQueue(20);
 
-    CHECK(completed.size() == 1u);
-    CHECK(completed[0].getId() == "militia_1");
+    CHECK(result.completed.size() == 1u);
+    CHECK(result.completed[0].getId() == "militia_1");
+    CHECK(result.spentIndustry == 20);
     CHECK(s.garrison().size() == 1u);
     CHECK(s.recruitmentQueue().size() == 1u);
     CHECK(s.recruitmentQueue()[0].remainingCost() == 10);

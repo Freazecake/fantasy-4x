@@ -23,8 +23,12 @@ private:
 public:
     GlobalPhase CurPhase() { return m_globalPhase; }
     const std::vector<Player> &players() const { return m_players; }
+    std::vector<Player> &players() { return m_players; }
     const Map &map() const { return m_map; }
     int turnNumber() const { return m_turnNumber; }
+
+    void addPlayer(const Player &player);
+    void setMap(const Map &map);
     void nextPhase() { m_globalPhase = static_cast<GlobalPhase>(static_cast<int>(m_globalPhase) + 1); }
     void nextTurn();
 };
