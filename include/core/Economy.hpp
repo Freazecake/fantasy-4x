@@ -48,6 +48,8 @@ public:
     const Resources &totals() const { return m_res; }
 
     bool trySpendTrade(int amount);
+    bool trySpendScience(int amount);
+    bool trySpendIndustry(int amount);
     bool trySpendDiplomacy(int amount);
     void addResource(const std::string &resourceType, int amount);
 };

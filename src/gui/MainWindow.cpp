@@ -60,10 +60,21 @@ MainWindow::MainWindow(QWidget* parent)
         refreshAllPanels();
     });
     connect(m_settlementPanel, &SettlementPanel::buildingQueued, this, [this](const std::string&) {
+        Player& human = m_engine.state().players()[0];
+        Settlement* settlement = m_settlementPanel->currentSettlement();
+        if (settlement)
+            human.spendIndustryOnQueues(*settlement);
         refreshAllPanels();
     });
     connect(m_settlementPanel, &SettlementPanel::unitRecruitmentQueued, this, [this](const std::string&) {
+        Player& human = m_engine.state().players()[0];
+        Settlement* settlement = m_settlementPanel->currentSettlement();
+        if (settlement)
+            human.spendIndustryOnQueues(*settlement);
         refreshAllPanels();
+    });
+    connect(m_settlementPanel, &SettlementPanel::actionFailed, this, [this](const QString& msg) {
+        statusBar()->showMessage(msg, 5000);
     });
 
     m_engine.loadFromAssets(ASSETS_DIR);

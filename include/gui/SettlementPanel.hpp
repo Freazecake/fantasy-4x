@@ -8,6 +8,7 @@
 #include <QProgressBar>
 #include <QVBoxLayout>
 #include <QGroupBox>
+#include <QTabWidget>
 
 #include "core/Settlement.hpp"
 #include "core/Building.hpp"
@@ -22,11 +23,13 @@ public:
                          const std::vector<Building>& buildingCatalog,
                          const std::vector<Unit>& unitCatalog);
     void clearSettlement();
+    Settlement* currentSettlement() const { return m_settlement; }
 
 signals:
     void allocationChanged();
     void buildingQueued(const std::string& buildingId);
     void unitRecruitmentQueued(const std::string& unitId);
+    void actionFailed(const QString& message);
 
 private slots:
     void onApplyAllocation();
@@ -38,6 +41,7 @@ private:
 
     Settlement* m_settlement = nullptr;
 
+    QTabWidget* m_tabs;
     QLabel* m_populationLabel;
     QSpinBox* m_scienceSpin;
     QSpinBox* m_industrySpin;

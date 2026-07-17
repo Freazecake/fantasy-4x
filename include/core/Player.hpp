@@ -69,8 +69,9 @@ public:
     bool hasResearched(const std::string &techId) const { return m_researchedTechIds.count(techId) > 0; }
 
     bool setCurrentResearch(const std::string &techId);
-    void investScience(int points);
+    int investScience(int points);
 
+    void spendIndustryOnQueues(Settlement& settlement);
     void advanceTurn();
 
     float effectiveTradeMultiplier() const;

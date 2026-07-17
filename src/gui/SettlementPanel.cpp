@@ -13,7 +13,10 @@ void SettlementPanel::setupUi() {
     m_populationLabel = new QLabel(QStringLiteral("Население: 0"), this);
     mainLayout->addWidget(m_populationLabel);
 
-    auto* allocGroup = new QGroupBox(QStringLiteral("Распределение населения"), this);
+    m_tabs = new QTabWidget(this);
+
+    // --- вкладка "Население" ---
+    auto* allocGroup = new QWidget(m_tabs);
     auto* allocLayout = new QFormLayout(allocGroup);
 
     m_scienceSpin = new QSpinBox(allocGroup);
@@ -39,9 +42,10 @@ void SettlementPanel::setupUi() {
     connect(m_applyBtn, &QPushButton::clicked, this, &SettlementPanel::onApplyAllocation);
     allocLayout->addRow(m_applyBtn);
 
-    mainLayout->addWidget(allocGroup);
+    m_tabs->addTab(allocGroup, QStringLiteral("Население"));
 
-    auto* buildGroup = new QGroupBox(QStringLiteral("Постройки"), this);
+    // --- вкладка "Постройки" ---
+    auto* buildGroup = new QWidget(m_tabs);
     auto* buildLayout = new QVBoxLayout(buildGroup);
 
     m_availableBuildingsList = new QListWidget(buildGroup);
@@ -56,9 +60,10 @@ void SettlementPanel::setupUi() {
     buildLayout->addWidget(new QLabel(QStringLiteral("Очередь строительства:"), buildGroup));
     buildLayout->addWidget(m_buildingQueueList);
 
-    mainLayout->addWidget(buildGroup);
+    m_tabs->addTab(buildGroup, QStringLiteral("Постройки"));
 
-    auto* recruitGroup = new QGroupBox(QStringLiteral("Найм войск"), this);
+    // --- вкладка "Войска" ---
+    auto* recruitGroup = new QWidget(m_tabs);
     auto* recruitLayout = new QVBoxLayout(recruitGroup);
 
     m_availableUnitsList = new QListWidget(recruitGroup);
@@ -77,7 +82,9 @@ void SettlementPanel::setupUi() {
     recruitLayout->addWidget(new QLabel(QStringLiteral("Гарнизон:"), recruitGroup));
     recruitLayout->addWidget(m_garrisonList);
 
-    mainLayout->addWidget(recruitGroup);
+    m_tabs->addTab(recruitGroup, QStringLiteral("Войска"));
+
+    mainLayout->addWidget(m_tabs);
 }
 
 void SettlementPanel::showSettlement(Settlement& settlement,
@@ -180,22 +187,27 @@ void SettlementPanel::onApplyAllocation() {
     int diffTrade = m_tradeSpin->value() - cur.trade;
     int diffDiplomacy = m_diplomacySpin->value() - cur.diplomacy;
 
-    auto unassign = [&](Sphere s, int amount) {
-        if (amount < 0) m_settlement->unassignToIdle(s, -amount);
-    };
-    auto assign = [&](Sphere s, int amount) {
-        if (amount > 0) m_settlement->assignFromIdle(s, amount);
-    };
+    try {
+        auto unassign = [&](Sphere s, int amount) {
+            if (amount < 0) m_settlement->unassignToIdle(s, -amount);
+        };
+        auto assign = [&](Sphere s, int amount) {
+            if (amount > 0) m_settlement->assignFromIdle(s, amount);
+        };
 
-    unassign(Sphere::Science, diffScience);
-    unassign(Sphere::Industry, diffIndustry);
-    unassign(Sphere::Trade, diffTrade);
-    unassign(Sphere::Diplomacy, diffDiplomacy);
+        unassign(Sphere::Science, diffScience);
+        unassign(Sphere::Industry, diffIndustry);
+        unassign(Sphere::Trade, diffTrade);
+        unassign(Sphere::Diplomacy, diffDiplomacy);
 
-    assign(Sphere::Science, diffScience);
-    assign(Sphere::Industry, diffIndustry);
-    assign(Sphere::Trade, diffTrade);
-    assign(Sphere::Diplomacy, diffDiplomacy);
+        assign(Sphere::Science, diffScience);
+        assign(Sphere::Industry, diffIndustry);
+        assign(Sphere::Trade, diffTrade);
+        assign(Sphere::Diplomacy, diffDiplomacy);
+    } catch (const std::exception& e) {
+        emit actionFailed(QString::fromStdString(e.what()));
+        return;
+    }
 
     m_idleLabel->setText(
         QStringLiteral("Свободно: %1").arg(m_settlement->allocation().idle));
@@ -212,8 +224,13 @@ void SettlementPanel::onQueueBuilding() {
     std::string buildingId = selected->data(Qt::UserRole).toString().toStdString();
     for (const auto& b : m_buildingCatalog) {
         if (b.getId() == buildingId) {
-            m_settlement->queueBuilding(b);
-            emit buildingQueued(buildingId);
+            try {
+                m_settlement->queueBuilding(b);
+                emit buildingQueued(buildingId);
+            } catch (const std::exception& e) {
+                emit actionFailed(QString::fromStdString(e.what()));
+                return;
+            }
             break;
         }
     }
@@ -230,8 +247,13 @@ void SettlementPanel::onQueueRecruitment() {
     std::string unitId = selected->data(Qt::UserRole).toString().toStdString();
     for (const auto& u : m_unitCatalog) {
         if (u.getId() == unitId) {
-            m_settlement->queueUnitRecruitment(u);
-            emit unitRecruitmentQueued(unitId);
+            try {
+                m_settlement->queueUnitRecruitment(u);
+                emit unitRecruitmentQueued(unitId);
+            } catch (const std::exception& e) {
+                emit actionFailed(QString::fromStdString(e.what()));
+                return;
+            }
             break;
         }
     }
