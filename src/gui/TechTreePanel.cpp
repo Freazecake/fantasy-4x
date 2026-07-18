@@ -3,14 +3,15 @@
 #include <QHBoxLayout>
 #include <map>
 
-static QString categorySymbol(const std::string& cat) {
+static QString categorySymbol(const std::string &cat)
+{
     QString lower = QString::fromStdString(cat).toLower();
-    if (lower == "combat" || lower == "война" || lower == "военное")
-        return QStringLiteral("[BOJ]");
+    if (lower == "military" || lower == "война" || lower == "военное")
+        return QStringLiteral("[MI]");
     if (lower == "economy" || lower == "экономика" || lower == "экономическое")
         return QStringLiteral("[GA]");
-    if (lower == "culture" || lower == "культура" || lower == "культурное")
-        return QStringLiteral("[MU]");
+    if (lower == "trade" || lower == "торговля" || lower == "культурное")
+        return QStringLiteral("[TR]");
     if (lower == "science" || lower == "наука" || lower == "научное")
         return QStringLiteral("[SC]");
     if (lower == "industry" || lower == "промышленность")
@@ -20,13 +21,14 @@ static QString categorySymbol(const std::string& cat) {
     return QStringLiteral("[?]");
 }
 
-static QColor categoryColor(const std::string& cat) {
+static QColor categoryColor(const std::string &cat)
+{
     QString lower = QString::fromStdString(cat).toLower();
-    if (lower == "combat" || lower == "война" || lower == "военное")
+    if (lower == "military" || lower == "война" || lower == "военное")
         return QColor(180, 80, 80);
     if (lower == "economy" || lower == "экономика" || lower == "экономическое")
         return QColor(80, 160, 80);
-    if (lower == "culture" || lower == "культура" || lower == "культурное")
+    if (lower == "trade" || lower == "торговля" || lower == "культурное")
         return QColor(180, 120, 200);
     if (lower == "science" || lower == "наука" || lower == "научное")
         return QColor(80, 140, 200);
@@ -37,12 +39,14 @@ static QColor categoryColor(const std::string& cat) {
     return QColor(212, 175, 55);
 }
 
-TechTreePanel::TechTreePanel(QWidget* parent) : QWidget(parent) {
+TechTreePanel::TechTreePanel(QWidget *parent) : QWidget(parent)
+{
     setupUi();
 }
 
-void TechTreePanel::setupUi() {
-    auto* layout = new QVBoxLayout(this);
+void TechTreePanel::setupUi()
+{
+    auto *layout = new QVBoxLayout(this);
 
     m_currentResearchLabel = new QLabel(QStringLiteral("Текущее исследование: —"), this);
     layout->addWidget(m_currentResearchLabel);
@@ -62,18 +66,22 @@ void TechTreePanel::setupUi() {
     layout->addWidget(m_researchBtn);
 }
 
-void TechTreePanel::showTechs(const std::vector<Technology>& catalog,
-                               const std::unordered_set<std::string>& researchedIds,
-                               const std::string& currentResearchId) {
+void TechTreePanel::showTechs(const std::vector<Technology> &catalog,
+                              const std::unordered_set<std::string> &researchedIds,
+                              const std::string &currentResearchId)
+{
     m_catalog = catalog;
     m_researchedIds = researchedIds;
     m_currentResearchId = currentResearchId;
 
     m_techList->clear();
 
-    if (!currentResearchId.empty()) {
-        for (auto& t : m_catalog) {
-            if (t.getId() == currentResearchId) {
+    if (!currentResearchId.empty())
+    {
+        for (auto &t : m_catalog)
+        {
+            if (t.getId() == currentResearchId)
+            {
                 m_currentResearchLabel->setText(
                     QStringLiteral("Исследуется: %1")
                         .arg(QString::fromStdString(t.getName())));
@@ -84,27 +92,30 @@ void TechTreePanel::showTechs(const std::vector<Technology>& catalog,
                 break;
             }
         }
-    } else {
+    }
+    else
+    {
         m_currentResearchLabel->setText(QStringLiteral("Текущее исследование: —"));
         m_researchProgress->setVisible(false);
     }
 
     std::map<std::string, std::vector<Technology>> byCategory;
-    for (auto& t : m_catalog) byCategory[t.getCategory()].push_back(t);
+    for (auto &t : m_catalog)
+        byCategory[t.getCategory()].push_back(t);
 
-    for (auto& [category, techs] : byCategory) {
-        QString headerText = categorySymbol(category)
-            + QStringLiteral(" %1 ").arg(QString::fromStdString(category))
-            + categorySymbol(category);
+    for (auto &[category, techs] : byCategory)
+    {
+        QString headerText = categorySymbol(category) + QStringLiteral(" %1 ").arg(QString::fromStdString(category)) + categorySymbol(category);
 
-        auto* header = new QListWidgetItem(headerText, m_techList);
+        auto *header = new QListWidgetItem(headerText, m_techList);
         header->setFlags(Qt::NoItemFlags);
         header->setForeground(categoryColor(category));
         QFont headerFont = header->font();
         headerFont.setBold(true);
         header->setFont(headerFont);
 
-        for (auto& tech : techs) {
+        for (auto &tech : techs)
+        {
             bool researched = researchedIds.count(tech.getId()) > 0;
             bool canResearch = !researched && tech.canResearch(researchedIds);
 
@@ -116,29 +127,32 @@ void TechTreePanel::showTechs(const std::vector<Technology>& catalog,
             else
                 prefix = QStringLiteral("[X] ");
 
-            QString text = prefix + QString::fromStdString(tech.getName())
-                           + QStringLiteral(" (%1)")
-                               .arg(QString::fromStdString(tech.getCategory()))
-                           + QStringLiteral(" — %1 ед.").arg(tech.getCost());
+            QString text = prefix + QString::fromStdString(tech.getName()) + QStringLiteral(" (%1)").arg(QString::fromStdString(tech.getCategory())) + QStringLiteral(" — %1 ед.").arg(tech.getCost());
 
-            if (!researched && !canResearch) {
+            if (!researched && !canResearch)
+            {
                 QStringList missing;
-                for (auto& reqId : tech.getPrerequisiteIds()) {
-                    if (m_researchedIds.count(reqId) == 0) {
-                        for (auto& t2 : m_catalog) {
-                            if (t2.getId() == reqId) {
+                for (auto &reqId : tech.getPrerequisiteIds())
+                {
+                    if (m_researchedIds.count(reqId) == 0)
+                    {
+                        for (auto &t2 : m_catalog)
+                        {
+                            if (t2.getId() == reqId)
+                            {
                                 missing << QString::fromStdString(t2.getName());
                                 break;
                             }
                         }
                     }
                 }
-                if (!missing.isEmpty()) {
+                if (!missing.isEmpty())
+                {
                     text += QStringLiteral(" (нужно: %1)").arg(missing.join(", "));
                 }
             }
 
-            auto* item = new QListWidgetItem(text, m_techList);
+            auto *item = new QListWidgetItem(text, m_techList);
             item->setData(Qt::UserRole, QString::fromStdString(tech.getId()));
             if (researched)
                 item->setForeground(QColor(74, 160, 74));
@@ -148,16 +162,22 @@ void TechTreePanel::showTechs(const std::vector<Technology>& catalog,
     }
 }
 
-void TechTreePanel::onResearchClicked() {
+void TechTreePanel::onResearchClicked()
+{
     auto selected = m_techList->currentItem();
-    if (!selected) return;
+    if (!selected)
+        return;
 
     std::string techId = selected->data(Qt::UserRole).toString().toStdString();
 
-    for (auto& t : m_catalog) {
-        if (t.getId() == techId) {
-            if (m_researchedIds.count(techId) > 0) return;
-            if (!t.canResearch(m_researchedIds)) return;
+    for (auto &t : m_catalog)
+    {
+        if (t.getId() == techId)
+        {
+            if (m_researchedIds.count(techId) > 0)
+                return;
+            if (!t.canResearch(m_researchedIds))
+                return;
             break;
         }
     }
