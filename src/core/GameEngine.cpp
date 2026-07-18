@@ -91,6 +91,45 @@ bool GameEngine::loadFromAssets(const std::string &assetsDir)
     return true;
 }
 
+std::string GameEngine::applyPoliticalAction(int playerId, const std::string &actionId, int targetId)
+{
+    Player *player = nullptr, *target = nullptr;
+    for (auto &p : m_state.players())
+    {
+        if (p.id() == playerId) player = &p;
+        if (p.id() == targetId) target = &p;
+    }
+    if (!player) return "Игрок не найден";
+
+    for (const auto &a : m_politicalActionCatalog)
+    {
+        if (a.getId() != actionId) continue;
+
+        if (!player->trySpendOnPoliticalAction(a))
+            return "Недостаточно дипломатии";
+
+        switch (a.getType())
+        {
+        case PoliticalActionType::Alliance:
+            if (!target) return "Цель не найдена";
+            m_state.newAlliance(*player, *target, m_state.turnNumber() + 5);
+            return "Союз заключён";
+
+        case PoliticalActionType::DemandTribute:
+            if (!target) return "Цель не найдена";
+            m_state.applyDemandTribute(playerId, targetId);
+            return "Дань потребована";
+
+        case PoliticalActionType::Vassalize:
+            return "Вассализация пока не реализована";
+
+        case PoliticalActionType::PoliticalConquest:
+            return "Политическое поглощение пока не реализовано";
+        }
+    }
+    return "Действие не найдено";
+}
+
 void GameEngine::endTurn()
 {
     for (auto &player : m_state.players())

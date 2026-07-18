@@ -43,4 +43,5 @@ public:
     void nextTurn();
 
     void checkAlliances();
+    void applyDemandTribute(int sourceId, int targetId);
 };

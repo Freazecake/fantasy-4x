@@ -77,6 +77,9 @@ public:
     void spendIndustryOnQueues(Settlement &settlement);
     void advanceTurn();
 
+    Resources takeFractionFromEconomy(float fraction);
+    void addResources(const Resources &res);
+
     float effectiveTradeMultiplier() const;
     bool exchangeTrade(const std::string &targetResource, int tradeToSpend);
 

@@ -134,6 +134,19 @@ bool Player::exchangeTrade(const std::string &targetResource, int tradeToSpend)
     return true;
 }
 
+Resources Player::takeFractionFromEconomy(float fraction)
+{
+    Resources total = m_economy.totals();
+    Resources taken = total * fraction;
+    m_economy.accumulate(taken * (-1.0f));
+    return taken;
+}
+
+void Player::addResources(const Resources &res)
+{
+    m_economy.accumulate(res);
+}
+
 bool Player::trySpendOnPoliticalAction(const PoliticalAction &action)
 {
     return m_economy.trySpendDiplomacy(action.getCost());

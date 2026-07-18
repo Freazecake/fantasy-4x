@@ -38,6 +38,7 @@ add_executable(game_tests
     test_economy.cpp
     test_military.cpp
     test_political_action.cpp
+    test_political_effects.cpp
     test_trade_market.cpp
     test_player.cpp
     test_data_integrity.cpp
@@ -56,6 +57,7 @@ add_executable(game_tests
     ${GAME_ROOT}/src/core/PoliticalAction.cpp
     ${GAME_ROOT}/src/core/TradeMarket.cpp
     ${GAME_ROOT}/src/core/Player.cpp
+    ${GAME_ROOT}/src/core/GameState.cpp
 )
 
 target_include_directories(game_tests PRIVATE

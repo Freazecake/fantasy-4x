@@ -47,3 +47,17 @@ void GameState::checkAlliances()
         p.setAllianceBonus(has);
     }
 }
+
+void GameState::applyDemandTribute(int sourceId, int targetId)
+{
+    Player *source = nullptr, *target = nullptr;
+    for (auto &p : m_players)
+    {
+        if (p.id() == sourceId) source = &p;
+        if (p.id() == targetId) target = &p;
+    }
+    if (!source || !target) return;
+
+    Resources taken = target->takeFractionFromEconomy(0.3f);
+    source->addResources(taken);
+}
