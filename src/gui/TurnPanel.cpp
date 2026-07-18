@@ -1,6 +1,6 @@
 #include "gui/TurnPanel.hpp"
 #include <QVBoxLayout>
-#include <QHBoxLayout>
+#include <QGridLayout>
 
 TurnPanel::TurnPanel(QWidget* parent) : QWidget(parent) {
     setupUi();
@@ -14,19 +14,24 @@ void TurnPanel::setupUi() {
     layout->addWidget(m_turnLabel);
     layout->addWidget(m_phaseLabel);
 
-    layout->addSpacing(8);
+    layout->addSpacing(6);
 
     auto* resGroup = new QWidget(this);
-    auto* resLayout = new QVBoxLayout(resGroup);
-    resLayout->setContentsMargins(0, 0, 0, 0);
+    auto* resGrid = new QGridLayout(resGroup);
+    resGrid->setContentsMargins(0, 0, 0, 0);
+    resGrid->setHorizontalSpacing(12);
+    resGrid->setVerticalSpacing(2);
+
     m_scienceLabel = new QLabel(QStringLiteral("Наука: 0"), resGroup);
     m_industryLabel = new QLabel(QStringLiteral("Пром: 0"), resGroup);
     m_tradeLabel = new QLabel(QStringLiteral("Торговля: 0"), resGroup);
     m_diplomacyLabel = new QLabel(QStringLiteral("Дипломатия: 0"), resGroup);
-    resLayout->addWidget(m_scienceLabel);
-    resLayout->addWidget(m_industryLabel);
-    resLayout->addWidget(m_tradeLabel);
-    resLayout->addWidget(m_diplomacyLabel);
+
+    resGrid->addWidget(m_scienceLabel, 0, 0);
+    resGrid->addWidget(m_industryLabel, 0, 1);
+    resGrid->addWidget(m_tradeLabel, 1, 0);
+    resGrid->addWidget(m_diplomacyLabel, 1, 1);
+
     layout->addWidget(resGroup);
 
     layout->addStretch();

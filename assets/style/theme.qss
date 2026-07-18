@@ -1,0 +1,348 @@
+/* ============================================================
+   4X Стратегия — тема "Pixel Fantasy"
+   ------------------------------------------------------------
+   Палитра (тёмное дерево + бронза + пергамент + золото):
+     bg-darkest       #120e0a   фон окна
+     bg-panel         #1a140e   фон рамок/списков/карты
+     bg-panel-alt     #241c14   фон кнопок/полей ввода
+     bg-panel-hover   #2f2517   ховер на полях ввода
+     border-bronze    #8a6d3b   обычная рамка
+     border-dark      #3a3226   тонкая внутренняя линия/disabled рамка
+     text-parchment   #e8dcc0   основной текст
+     text-dim         #a89878   второстепенный текст
+     accent-gold      #d4af37   ховер/выделение/акцент
+     accent-gold-dark #a5842a   нажатое состояние
+     state-danger     #8a3f3f   недоступно/заблокировано (используется в коде, не здесь)
+
+   Шрифты (оба должны быть загружены через QFontDatabase::addApplicationFont
+   ДО применения этого файла — см. main.cpp в промпте):
+     "Press Start 2P" — заголовки, кнопки, вкладки, меню (только короткие строки,
+                         это широкий блочный шрифт, длинный текст им не набирать)
+     "VT323"           — всё остальное: списки, лейблы, спинбоксы (читаемый
+                         моноширинный "CRT"-шрифт, держит атмосферу, но не режет глаз)
+   ============================================================ */
+
+* {
+    outline: none;
+}
+
+QWidget {
+    background-color: #120e0a;
+    color: #e8dcc0;
+    font-family: "VT323";
+    font-size: 15pt;
+}
+
+QMainWindow, QStackedWidget {
+    background-color: #120e0a;
+}
+
+/* ---------- Заголовки / кнопки / вкладки — дисплейный пиксельный шрифт ---------- */
+QPushButton, QGroupBox::title, QTabBar::tab, QMenuBar, QMenu {
+    font-family: "Press Start 2P";
+}
+
+/* ---------- Кнопки ---------- */
+QPushButton {
+    background-color: #241c14;
+    color: #e8dcc0;
+    border: 3px solid #8a6d3b;
+    padding: 8px 10px;
+    font-size: 9pt;
+}
+QPushButton:hover {
+    background-color: #2f2517;
+    border-color: #d4af37;
+    color: #d4af37;
+}
+QPushButton:pressed {
+    background-color: #5a4526;
+    border-color: #a5842a;
+    color: #120e0a;
+}
+QPushButton:disabled {
+    background-color: #1a1512;
+    color: #5a5040;
+    border-color: #3a3226;
+}
+
+/* ---------- Группы-секции (QGroupBox) ---------- */
+QGroupBox {
+    border: 3px solid #8a6d3b;
+    margin-top: 16px;
+    padding: 12px 6px 6px 6px;
+    background-color: #1a140e;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 10px;
+    padding: 2px 8px;
+    color: #d4af37;
+    background-color: #120e0a;
+    font-size: 8pt;
+}
+
+/* ---------- Вкладки (QTabWidget/QTabBar) ---------- */
+QTabWidget::pane {
+    border: 3px solid #8a6d3b;
+    background-color: #1a140e;
+    top: -1px;
+}
+QTabBar::tab {
+    background-color: #241c14;
+    color: #a89878;
+    border: 3px solid #8a6d3b;
+    border-bottom: none;
+    padding: 6px 14px;
+    margin-right: 2px;
+    font-size: 8pt;
+}
+QTabBar::tab:selected {
+    background-color: #1a140e;
+    color: #d4af37;
+}
+QTabBar::tab:hover:!selected {
+    color: #e8dcc0;
+}
+
+/* ---------- Списки (QListWidget) ---------- */
+QListWidget {
+    background-color: #1a140e;
+    border: 3px solid #8a6d3b;
+    color: #e8dcc0;
+    font-size: 13pt;
+}
+QListWidget::item {
+    padding: 4px 6px;
+    border-bottom: 1px solid #3a3226;
+}
+QListWidget::item:selected {
+    background-color: #4a3a1f;
+    color: #d4af37;
+}
+QListWidget::item:hover:!selected {
+    background-color: #241c14;
+}
+QListWidget::item:disabled {
+    color: #5a5040;
+}
+
+/* ---------- Поля чисел (QSpinBox) ---------- */
+QSpinBox {
+    background-color: #1a140e;
+    border: 3px solid #8a6d3b;
+    color: #e8dcc0;
+    padding: 2px 4px;
+    font-size: 13pt;
+}
+QSpinBox:focus {
+    border-color: #d4af37;
+}
+QSpinBox::up-button, QSpinBox::down-button {
+    background-color: #241c14;
+    border-left: 2px solid #8a6d3b;
+    width: 18px;
+}
+QSpinBox::up-button:hover, QSpinBox::down-button:hover {
+    background-color: #4a3a1f;
+}
+
+/* ---------- Обычные подписи ---------- */
+QLabel {
+    color: #e8dcc0;
+    font-size: 13pt;
+    background: transparent;
+}
+
+/* ---------- Верхнее меню ---------- */
+QMenuBar {
+    background-color: #1a140e;
+    color: #e8dcc0;
+    border-bottom: 3px solid #8a6d3b;
+    font-size: 8pt;
+}
+QMenuBar::item {
+    padding: 6px 12px;
+    background: transparent;
+}
+QMenuBar::item:selected {
+    background-color: #4a3a1f;
+    color: #d4af37;
+}
+QMenu {
+    background-color: #1a140e;
+    color: #e8dcc0;
+    border: 3px solid #8a6d3b;
+    font-size: 8pt;
+}
+QMenu::item {
+    padding: 6px 20px;
+}
+QMenu::item:selected {
+    background-color: #4a3a1f;
+    color: #d4af37;
+}
+
+/* ---------- Статус-бар ---------- */
+QStatusBar {
+    background-color: #1a140e;
+    color: #a89878;
+    border-top: 3px solid #8a6d3b;
+    font-size: 11pt;
+}
+
+/* ---------- Разделители (QSplitter) ---------- */
+QSplitter::handle {
+    background-color: #8a6d3b;
+}
+QSplitter::handle:horizontal { width: 3px; }
+QSplitter::handle:vertical { height: 3px; }
+
+/* ---------- Полосы прокрутки — без плавных градиентов, блочные ---------- */
+QScrollBar:vertical {
+    background-color: #1a140e;
+    width: 16px;
+    border-left: 2px solid #8a6d3b;
+    margin: 0px;
+}
+QScrollBar::handle:vertical {
+    background-color: #8a6d3b;
+    min-height: 24px;
+    border: 2px solid #120e0a;
+}
+QScrollBar::handle:vertical:hover {
+    background-color: #d4af37;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: none;
+}
+QScrollBar:horizontal {
+    background-color: #1a140e;
+    height: 16px;
+    border-top: 2px solid #8a6d3b;
+    margin: 0px;
+}
+QScrollBar::handle:horizontal {
+    background-color: #8a6d3b;
+    min-width: 24px;
+    border: 2px solid #120e0a;
+}
+QScrollBar::handle:horizontal:hover {
+    background-color: #d4af37;
+}
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0px;
+}
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+    background: none;
+}
+
+QScrollArea {
+    border: none;
+    background-color: transparent;
+}
+
+/* ---------- Стартовое меню — селекторы по objectName, см. StartMenuWidget ---------- */
+QLabel#startMenuTitle {
+    font-family: "Press Start 2P";
+    font-size: 26pt;
+    color: #d4af37;
+}
+QLabel#startMenuSubtitle {
+    font-family: "VT323";
+    font-size: 16pt;
+    color: #a89878;
+}
+QPushButton#startMenuPrimaryBtn {
+    font-size: 11pt;
+    padding: 14px 28px;
+    min-width: 220px;
+}
+
+/* ---------- Рамка стартового меню ---------- */
+QFrame#startMenuFrame {
+    border: 4px solid #8a6d3b;
+    background-color: #1a140e;
+}
+
+/* ---------- Разделитель в стартовом меню ---------- */
+QFrame#startMenuSeparator {
+    background-color: #d4af37;
+    border: none;
+    min-height: 3px;
+    max-height: 3px;
+}
+
+/* ---------- Версия в меню ---------- */
+QLabel#startMenuVersion {
+    font-family: "Press Start 2P";
+    font-size: 7pt;
+    color: #5a5040;
+}
+
+/* ---------- Прогресс-бар (исследования, стройка) ---------- */
+QProgressBar {
+    background-color: #1a140e;
+    border: 3px solid #8a6d3b;
+    padding: 1px;
+    text-align: center;
+    color: #e8dcc0;
+    font-family: "Press Start 2P";
+    font-size: 8pt;
+    min-height: 18px;
+}
+QProgressBar::chunk {
+    background-color: #d4af37;
+    border: 1px solid #a5842a;
+    margin: 0px;
+}
+
+/* ---------- Подсказки ---------- */
+QToolTip {
+    background-color: #1a140e;
+    color: #e8dcc0;
+    border: 3px solid #8a6d3b;
+    font-family: "VT323";
+    font-size: 13pt;
+    padding: 4px 8px;
+}
+
+/* ---------- Карта (QGraphicsView) ---------- */
+QGraphicsView {
+    background-color: #0d0a07;
+    border: 3px solid #8a6d3b;
+}
+
+/* ---------- Чекбоксы и радио-кнопки (на будущее) ---------- */
+QCheckBox, QRadioButton {
+    font-family: "VT323";
+    font-size: 13pt;
+    color: #e8dcc0;
+    spacing: 6px;
+}
+QCheckBox::indicator, QRadioButton::indicator {
+    width: 14px;
+    height: 14px;
+    border: 2px solid #8a6d3b;
+    background-color: #241c14;
+}
+QCheckBox::indicator:checked {
+    background-color: #d4af37;
+    border-color: #a5842a;
+}
+QRadioButton::indicator {
+    border-radius: 7px;
+}
+QRadioButton::indicator:checked {
+    background-color: #d4af37;
+    border-color: #a5842a;
+}
+
+/* ---------- QSplitter handle hover ---------- */
+QSplitter::handle:hover {
+    background-color: #d4af37;
+}

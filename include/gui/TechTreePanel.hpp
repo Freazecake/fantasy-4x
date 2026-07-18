@@ -4,6 +4,7 @@
 #include <QListWidget>
 #include <QPushButton>
 #include <QLabel>
+#include <QProgressBar>
 #include <QVBoxLayout>
 
 #include "core/Technology.hpp"
@@ -30,6 +31,7 @@ private:
     QListWidget* m_techList;
     QPushButton* m_researchBtn;
     QLabel* m_currentResearchLabel;
+    QProgressBar* m_researchProgress;
 
     std::vector<Technology> m_catalog;
     std::unordered_set<std::string> m_researchedIds;

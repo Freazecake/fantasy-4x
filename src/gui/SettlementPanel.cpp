@@ -3,6 +3,36 @@
 #include <QFormLayout>
 #include <QHBoxLayout>
 
+static QString formatModifiers(const Modifiers& m) {
+    QStringList parts;
+    if (m.science != 1.0f)
+        parts << QString::fromUtf8("+%1% \xD0\xBD\xD0\xB0\xD1\x83\xD0\xBA\xD0\xB8")
+                     .arg(static_cast<int>((m.science - 1.0f) * 100));
+    if (m.industry != 1.0f)
+        parts << QString::fromUtf8("+%1% \xD0\xBF\xD1\x80\xD0\xBE\xD0\xBC.")
+                     .arg(static_cast<int>((m.industry - 1.0f) * 100));
+    if (m.trade != 1.0f)
+        parts << QString::fromUtf8("+%1% \xD1\x82\xD0\xBE\xD1\x80\xD0\xB3.")
+                     .arg(static_cast<int>((m.trade - 1.0f) * 100));
+    if (m.diplomacy != 1.0f)
+        parts << QString::fromUtf8("+%1% \xD0\xB4\xD0\xB8\xD0\xBF\xD0\xBB.")
+                     .arg(static_cast<int>((m.diplomacy - 1.0f) * 100));
+    if (m.military != 1.0f)
+        parts << QString::fromUtf8("+%1% \xD0\xB2\xD0\xBE\xD0\xB5\xD0\xBD.")
+                     .arg(static_cast<int>((m.military - 1.0f) * 100));
+    if (m.growth != 1.0f)
+        parts << QString::fromUtf8("+%1% \xD1\x80\xD0\xBE\xD1\x81\xD1\x82")
+                     .arg(static_cast<int>((m.growth - 1.0f) * 100));
+    return parts.isEmpty() ? QString() : QStringLiteral(" [") + parts.join(", ") + QStringLiteral("]");
+}
+
+static QString findBuildingName(const std::vector<Building>& catalog, const std::string& id) {
+    for (const auto& b : catalog) {
+        if (b.getId() == id) return QString::fromStdString(b.getName());
+    }
+    return QString::fromStdString(id);
+}
+
 SettlementPanel::SettlementPanel(QWidget* parent) : QWidget(parent) {
     setupUi();
 }
@@ -112,26 +142,43 @@ void SettlementPanel::showSettlement(Settlement& settlement,
     m_availableBuildingsList->clear();
     for (const auto& b : buildingCatalog) {
         if (settlement.hasBuilt(b.getId())) continue;
-        auto* item = new QListWidgetItem(
-            QString::fromStdString(b.getName() + " (" + b.getId() + ")"),
-            m_availableBuildingsList);
+
+        QString text = QString::fromStdString(b.getName())
+            + QStringLiteral(" [%1]").arg(QString::fromStdString(b.getCategory()))
+            + QStringLiteral(" — %1 пром.").arg(b.getCost());
+
+        QString modStr = formatModifiers(b.getModifiers());
+        if (!modStr.isEmpty()) text += modStr;
+
+        auto* item = new QListWidgetItem(text, m_availableBuildingsList);
         item->setData(Qt::UserRole, QString::fromStdString(b.getId()));
     }
 
     m_buildingQueueList->clear();
     for (const auto& qi : settlement.buildingQueue()) {
+        int total = qi.building.getCost();
         int remaining = qi.remainingCost();
+        int done = total - remaining;
         QString text = QString::fromStdString(qi.building.getName())
-                       + QStringLiteral(" — осталось: %1").arg(remaining);
+                       + QStringLiteral(" — %1/%2").arg(done).arg(total);
         m_buildingQueueList->addItem(text);
     }
 
     m_availableUnitsList->clear();
     for (const auto& u : unitCatalog) {
         bool canRecruit = Military::canRecruit(u, settlement.builtBuildings());
-        QString text = QString::fromStdString(u.getName());
-        if (!canRecruit)
-            text += QStringLiteral(" (нужна казарма)");
+
+        QString text = QString::fromStdString(u.getName())
+            + QStringLiteral(" (tier %1)").arg(u.getTier())
+            + QStringLiteral(" — %1 пром., %2 нас.").arg(u.getRecruitCost()).arg(u.getPopulationCost());
+
+        if (!canRecruit) {
+            if (u.requiresBuilding()) {
+                text += QStringLiteral(" [нужно: %1]").arg(findBuildingName(buildingCatalog, u.getRequiredBuildingId()));
+            } else {
+                text += QStringLiteral(" (нужна казарма)");
+            }
+        }
 
         auto* item = new QListWidgetItem(text, m_availableUnitsList);
         item->setData(Qt::UserRole, QString::fromStdString(u.getId()));
@@ -141,9 +188,11 @@ void SettlementPanel::showSettlement(Settlement& settlement,
 
     m_recruitQueueList->clear();
     for (const auto& ri : settlement.recruitmentQueue()) {
+        int total = ri.unit.getRecruitCost();
         int remaining = ri.remainingCost();
+        int done = total - remaining;
         QString text = QString::fromStdString(ri.unit.getName())
-                       + QStringLiteral(" — осталось: %1").arg(remaining);
+                       + QStringLiteral(" — %1/%2").arg(done).arg(total);
         m_recruitQueueList->addItem(text);
     }
 

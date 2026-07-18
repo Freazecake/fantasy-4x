@@ -3,12 +3,15 @@
 #include "gui/SettlementPanel.hpp"
 #include "gui/TechTreePanel.hpp"
 #include "gui/TurnPanel.hpp"
+#include "gui/StartMenuWidget.hpp"
 
 #include <QMenuBar>
 #include <QStatusBar>
 #include <QSplitter>
+#include <QStackedWidget>
 #include <QVBoxLayout>
 #include <QWidget>
+#include <QApplication>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -18,14 +21,29 @@ MainWindow::MainWindow(QWidget* parent)
 
     auto* menuBar = this->menuBar();
     auto* gameMenu = menuBar->addMenu(QStringLiteral("Игра"));
-    gameMenu->addAction(QStringLiteral("Завершить ход"));
+    auto* endTurnAction = gameMenu->addAction(QStringLiteral("Завершить ход"));
+    connect(endTurnAction, &QAction::triggered, this, &MainWindow::onEndTurn);
 
+    m_startMenu = new StartMenuWidget(this);
+    connect(m_startMenu, &StartMenuWidget::newGameRequested, this, &MainWindow::onNewGame);
+    connect(m_startMenu, &StartMenuWidget::exitRequested, qApp, &QApplication::quit);
+
+    m_stack = new QStackedWidget(this);
+    m_stack->addWidget(m_startMenu);
+    m_stack->addWidget(buildGameView());
+    setCentralWidget(m_stack);
+    m_stack->setCurrentIndex(0);
+
+    statusBar()->showMessage(QStringLiteral("4X Стратегия v0.1.0"));
+}
+
+QWidget* MainWindow::buildGameView() {
     m_mapView = new MapView(this);
     m_settlementPanel = new SettlementPanel(this);
     m_techTreePanel = new TechTreePanel(this);
     m_turnPanel = new TurnPanel(this);
 
-    auto* centralSplitter = new QSplitter(Qt::Horizontal, this);
+    auto* centralSplitter = new QSplitter(Qt::Horizontal);
     centralSplitter->addWidget(m_mapView);
 
     auto* rightPanel = new QWidget(centralSplitter);
@@ -41,12 +59,10 @@ MainWindow::MainWindow(QWidget* parent)
     centralSplitter->addWidget(rightPanel);
     centralSplitter->setStretchFactor(0, 3);
     centralSplitter->setStretchFactor(1, 2);
-    setCentralWidget(centralSplitter);
-
-    statusBar()->showMessage(QStringLiteral("Загрузка..."));
 
     connect(m_turnPanel, &TurnPanel::endTurnClicked, this, &MainWindow::onEndTurn);
     connect(m_mapView, &MapView::tileClicked, this, &MainWindow::onTileClicked);
+    connect(m_mapView, &MapView::tileHovered, this, &MainWindow::onTileHovered);
 
     connect(m_techTreePanel, &TechTreePanel::researchRequested, this,
         [this](const std::string& techId) {
@@ -77,9 +93,14 @@ MainWindow::MainWindow(QWidget* parent)
         statusBar()->showMessage(msg, 5000);
     });
 
+    return centralSplitter;
+}
+
+void MainWindow::onNewGame() {
     m_engine.loadFromAssets(ASSETS_DIR);
     refreshAllPanels();
-    statusBar()->showMessage(QStringLiteral("Готово"));
+    m_stack->setCurrentIndex(1);
+    statusBar()->showMessage(QStringLiteral("Партия начата"), 3000);
 }
 
 MainWindow::~MainWindow() {}
@@ -120,6 +141,8 @@ void MainWindow::refreshAllPanels() {
 }
 
 void MainWindow::onTileClicked(int q, int r) {
+    if (m_stack->currentIndex() != 1) return;
+
     statusBar()->showMessage(
         QStringLiteral("Клетка: %1, %2").arg(q).arg(r));
 
@@ -129,16 +152,21 @@ void MainWindow::onTileClicked(int q, int r) {
             auto c = tile.getCoords();
             if (c.q == q && c.r == r) {
                 m_settlementPanel->showSettlement(settlement, m_engine.buildingCatalog(), m_engine.unitCatalog());
-                statusBar()->showMessage(
-                    QStringLiteral("Поселение"),
-                    5000);
+                statusBar()->showMessage(QStringLiteral("Поселение"), 5000);
                 return;
             }
         }
     }
 }
 
+void MainWindow::onTileHovered(const QString& info) {
+    if (m_stack->currentIndex() != 1) return;
+    statusBar()->showMessage(info);
+}
+
 void MainWindow::onEndTurn() {
+    if (m_stack->currentIndex() != 1) return;
+
     m_engine.endTurn();
     refreshAllPanels();
     statusBar()->showMessage(

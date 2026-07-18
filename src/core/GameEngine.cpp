@@ -97,6 +97,7 @@ void GameEngine::endTurn()
         {
             settlement.growPopulation(DEFAULT_BASE_GROWTH_RATE,
                                        player.race().getModifiers().growth);
+            player.spendIndustryOnQueues(settlement);
         }
     }
     m_state.nextTurn();
