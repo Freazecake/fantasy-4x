@@ -141,6 +141,26 @@ bool Economy::trySpendTrade(int amount)
     return true;
 }
 
+bool Economy::trySpendScience(int amount)
+{
+    if (amount < 0)
+        throw std::invalid_argument("Economy::trySpendScience: amount не может быть отрицательным");
+    if (m_res.science < amount)
+        return false;
+    m_res.science -= amount;
+    return true;
+}
+
+bool Economy::trySpendIndustry(int amount)
+{
+    if (amount < 0)
+        throw std::invalid_argument("Economy::trySpendIndustry: amount не может быть отрицательным");
+    if (m_res.industry < amount)
+        return false;
+    m_res.industry -= amount;
+    return true;
+}
+
 bool Economy::trySpendDiplomacy(int amount)
 {
     if (amount < 0)

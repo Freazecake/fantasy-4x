@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.14)
 project("game")
 
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -9,12 +13,21 @@ file(GLOB_RECURSE SOURCES
     "include/*.hpp"
 )
 
+find_package(QT NAMES Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
+
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE 
     include
     src
     assets
+)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
+
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets"
 )
 
 enable_testing()

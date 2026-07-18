@@ -1,21 +1,28 @@
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <Windows.h>
+#include <QApplication>
+#include <QFontDatabase>
+#include <QFile>
+#include "gui/MainWindow.hpp"
 
-#include "core/Hero.hpp"
+static void loadPixelFonts() {
+    QFontDatabase::addApplicationFont(QString(ASSETS_DIR) + "/fonts/PressStart2P-Regular.ttf");
+    QFontDatabase::addApplicationFont(QString(ASSETS_DIR) + "/fonts/VT323-Regular.ttf");
+}
 
-int main()
+static QString loadStyleSheet() {
+    QFile f(QString(ASSETS_DIR) + "/style/theme.qss");
+    if (!f.open(QFile::ReadOnly | QFile::Text)) {
+        return QString();
+    }
+    return QString::fromUtf8(f.readAll());
+}
+
+int main(int argc, char *argv[])
 {
-    SetConsoleOutputCP(CP_UTF8);
-    SetConsoleCP(CP_UTF8);
+    QApplication app(argc, argv);
+    loadPixelFonts();
+    app.setStyleSheet(loadStyleSheet());
 
-    std::ifstream file("../assets/heroes.json");
-    json heroesJson = json::parse(file);
-    std::vector<Hero> heroes = Hero::loadAllFromJson(heroesJson["heroes"]);
-
-    for (const auto &hero : heroes)
-        std::cout << hero.toString() << std::endl;
-
-    return 0;
+    MainWindow window;
+    window.show();
+    return app.exec();
 }
