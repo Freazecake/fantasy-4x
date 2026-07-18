@@ -58,7 +58,7 @@ int Player::investScience(int points)
     return 0;
 }
 
-void Player::spendIndustryOnQueues(Settlement& settlement)
+void Player::spendIndustryOnQueues(Settlement &settlement)
 {
     int bankIndustry = static_cast<int>(m_economy.totals().industry);
     if (bankIndustry <= 0)
@@ -87,7 +87,7 @@ void Player::advanceTurn()
         Resources income = Economy::computeSettlementIncome(
             settlement, m_race.getModifiers(), settlement.builtBuildings(), m_heroes);
 
-        int currentIndustry = static_cast<int>(income.industry);
+                int currentIndustry = static_cast<int>(income.industry);
 
         auto buildResult = settlement.progressBuildingQueue(currentIndustry);
         currentIndustry -= buildResult.spentIndustry;
@@ -117,6 +117,9 @@ float Player::effectiveTradeMultiplier() const
     for (const auto &settlement : m_settlements)
         for (const auto &building : settlement.builtBuildings())
             multiplier *= building.getModifiers().trade;
+
+    if (m_allianceBonus)
+        multiplier *= 1.2;
 
     return multiplier;
 }

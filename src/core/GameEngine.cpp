@@ -99,9 +99,10 @@ void GameEngine::endTurn()
         for (auto &settlement : player.settlements())
         {
             settlement.growPopulation(DEFAULT_BASE_GROWTH_RATE,
-                                       player.race().getModifiers().growth);
+                                      player.race().getModifiers().growth);
             player.spendIndustryOnQueues(settlement);
         }
     }
+    m_state.checkAlliances();
     m_state.nextTurn();
 }

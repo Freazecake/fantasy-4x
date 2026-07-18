@@ -31,7 +31,7 @@ private:
     Economy m_economy;
     Race m_race;
     int m_id = -1;
-
+    bool m_allianceBonus = false;
     std::vector<Technology> m_technologies;
     std::string m_currentResearchId;
     std::unordered_set<std::string> m_researchedTechIds;
@@ -48,6 +48,9 @@ public:
 
     void setId(int id) { m_id = id; }
     int id() const { return m_id; }
+
+    void setAllianceBonus(bool ab) { m_allianceBonus = ab; }
+    bool allianceBonus() const { return m_allianceBonus; }
 
     void setRace(const Race &race) { m_race = race; }
     const Race &race() const { return m_race; }
@@ -71,7 +74,7 @@ public:
     bool setCurrentResearch(const std::string &techId);
     int investScience(int points);
 
-    void spendIndustryOnQueues(Settlement& settlement);
+    void spendIndustryOnQueues(Settlement &settlement);
     void advanceTurn();
 
     float effectiveTradeMultiplier() const;
@@ -83,5 +86,10 @@ public:
     {
         return Military::effectiveStats(unit, settlement.builtBuildings(),
                                         m_race.getModifiers().military, m_heroes);
+    }
+
+    bool operator==(const Player &other) const
+    {
+        return this->m_id == other.m_id;
     }
 };
