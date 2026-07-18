@@ -93,6 +93,45 @@ QWidget* MainWindow::buildGameView() {
         statusBar()->showMessage(msg, 5000);
     });
 
+    connect(m_settlementPanel, &SettlementPanel::tradeExchangeRequested, this,
+        [this](const std::string& targetResource, int amount) {
+            Player& human = m_engine.state().players()[0];
+            if (human.exchangeTrade(targetResource, amount)) {
+                statusBar()->showMessage(
+                    QStringLiteral("Обмен совершён: %1 ед. торговли → %2").arg(amount).arg(QString::fromStdString(targetResource)), 3000);
+            } else {
+                statusBar()->showMessage(QStringLiteral("Недостаточно торговли"), 3000);
+            }
+            refreshAllPanels();
+        });
+
+    connect(m_settlementPanel, &SettlementPanel::politicalActionRequested, this,
+        [this](const std::string& actionId) {
+            Player& human = m_engine.state().players()[0];
+            for (const auto& a : m_engine.politicalActionCatalog()) {
+                if (a.getId() == actionId) {
+                    if (human.trySpendOnPoliticalAction(a)) {
+                        QString msg;
+                        switch (a.getType()) {
+                            case PoliticalActionType::Alliance:
+                                msg = QStringLiteral("Союз заключён"); break;
+                            case PoliticalActionType::DemandTribute:
+                                msg = QStringLiteral("Дань потребована"); break;
+                            case PoliticalActionType::Vassalize:
+                                msg = QStringLiteral("Вассализация проведена"); break;
+                            case PoliticalActionType::PoliticalConquest:
+                                msg = QStringLiteral("ПОЛИТИЧЕСКАЯ ПОБЕДА!"); break;
+                        }
+                        statusBar()->showMessage(msg, 5000);
+                    } else {
+                        statusBar()->showMessage(QStringLiteral("Недостаточно дипломатии"), 3000);
+                    }
+                    break;
+                }
+            }
+            refreshAllPanels();
+        });
+
     return centralSplitter;
 }
 
@@ -123,7 +162,7 @@ void MainWindow::refreshAllPanels() {
     }
 
     m_techTreePanel->showTechs(
-        m_engine.techCatalog(),
+        human.technologies(),
         human.researchedTechIds(),
         human.currentResearchId());
 
@@ -138,6 +177,11 @@ void MainWindow::refreshAllPanels() {
     m_turnPanel->updateInfo(
         m_engine.state().turnNumber(), phaseName,
         res.science, res.industry, res.trade, res.diplomacy);
+
+    m_settlementPanel->updateTradeDiplomacy(
+        human.resources(),
+        human.effectiveTradeMultiplier(),
+        m_engine.politicalActionCatalog());
 }
 
 void MainWindow::onTileClicked(int q, int r) {

@@ -21,14 +21,17 @@ bool GameEngine::loadFromAssets(const std::string &assetsDir)
     json techJson = loadFile(assetsDir + "/technologies.json");
     json heroesJson = loadFile(assetsDir + "/heroes.json");
     json unitsJson = loadFile(assetsDir + "/units.json");
+    json politicsJson = loadFile(assetsDir + "/political_actions.json");
 
     if (racesJson.is_null() || buildingsJson.is_null() ||
-        techJson.is_null() || heroesJson.is_null() || unitsJson.is_null())
+        techJson.is_null() || heroesJson.is_null() || unitsJson.is_null() ||
+        politicsJson.is_null())
         return false;
 
     m_buildingCatalog = Building::loadAllFromJson(buildingsJson["buildings"]);
     m_techCatalog = Technology::loadAllFromJson(techJson["technologies"]);
     m_unitCatalog = Unit::loadAllFromJson(unitsJson["units"]);
+    m_politicalActionCatalog = PoliticalAction::loadAllFromJson(politicsJson["politicalActions"]);
 
     Race humanRace;
     for (const auto &r : racesJson["races"])

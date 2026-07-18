@@ -2,6 +2,7 @@
 #include "core/Military.hpp"
 #include <QFormLayout>
 #include <QHBoxLayout>
+#include <QComboBox>
 
 static QString formatModifiers(const Modifiers& m) {
     QStringList parts;
@@ -114,6 +115,62 @@ void SettlementPanel::setupUi() {
 
     m_tabs->addTab(recruitGroup, QStringLiteral("Войска"));
 
+    // --- вкладка "Торговля" ---
+    auto* tradeGroup = new QWidget(m_tabs);
+    auto* tradeLayout = new QVBoxLayout(tradeGroup);
+
+    m_tradeBalanceLabel = new QLabel(QStringLiteral("Доступно торговли: 0"), tradeGroup);
+    tradeLayout->addWidget(m_tradeBalanceLabel);
+
+    m_tradeRateLabel = new QLabel(QStringLiteral("Курс обмена: x1.0"), tradeGroup);
+    tradeLayout->addWidget(m_tradeRateLabel);
+
+    tradeLayout->addSpacing(8);
+
+    auto* exchangeRow = new QHBoxLayout();
+    m_tradeAmountSpin = new QSpinBox(tradeGroup);
+    m_tradeAmountSpin->setRange(0, 9999);
+    m_tradeAmountSpin->setValue(10);
+    exchangeRow->addWidget(m_tradeAmountSpin);
+
+    m_tradeTargetCombo = new QComboBox(tradeGroup);
+    m_tradeTargetCombo->addItem(QStringLiteral("Наука"), QStringLiteral("science"));
+    m_tradeTargetCombo->addItem(QStringLiteral("Промышленность"), QStringLiteral("industry"));
+    m_tradeTargetCombo->addItem(QStringLiteral("Дипломатия"), QStringLiteral("diplomacy"));
+    exchangeRow->addWidget(m_tradeTargetCombo);
+
+    m_exchangeBtn = new QPushButton(QStringLiteral("Обменять"), tradeGroup);
+    connect(m_exchangeBtn, &QPushButton::clicked, this, &SettlementPanel::onExchangeTrade);
+    exchangeRow->addWidget(m_exchangeBtn);
+    tradeLayout->addLayout(exchangeRow);
+
+    m_tradeResultLabel = new QLabel(QStringLiteral(""), tradeGroup);
+    m_tradeResultLabel->setWordWrap(true);
+    tradeLayout->addWidget(m_tradeResultLabel);
+
+    tradeLayout->addStretch();
+    m_tabs->addTab(tradeGroup, QStringLiteral("Торговля"));
+
+    // --- вкладка "Дипломатия" ---
+    auto* diplomacyGroup = new QWidget(m_tabs);
+    auto* diplomacyLayout = new QVBoxLayout(diplomacyGroup);
+
+    m_diplomacyBalanceLabel = new QLabel(QStringLiteral("Доступно дипломатии: 0"), diplomacyGroup);
+    diplomacyLayout->addWidget(m_diplomacyBalanceLabel);
+
+    diplomacyLayout->addSpacing(8);
+
+    m_politicalActionList = new QListWidget(diplomacyGroup);
+    diplomacyLayout->addWidget(new QLabel(QStringLiteral("Политические действия:"), diplomacyGroup));
+    diplomacyLayout->addWidget(m_politicalActionList);
+
+    m_executeActionBtn = new QPushButton(QStringLiteral("Выполнить"), diplomacyGroup);
+    connect(m_executeActionBtn, &QPushButton::clicked, this, &SettlementPanel::onExecutePoliticalAction);
+    diplomacyLayout->addWidget(m_executeActionBtn);
+
+    diplomacyLayout->addStretch();
+    m_tabs->addTab(diplomacyGroup, QStringLiteral("Дипломатия"));
+
     mainLayout->addWidget(m_tabs);
 }
 
@@ -204,6 +261,34 @@ void SettlementPanel::showSettlement(Settlement& settlement,
     setEnabled(true);
 }
 
+void SettlementPanel::updateTradeDiplomacy(const Resources& resources,
+                                            float tradeMultiplier,
+                                            const std::vector<PoliticalAction>& politicalActions) {
+    m_politicalActionCatalog = politicalActions;
+    m_tradeMultiplier = tradeMultiplier;
+
+    int tradeBalance = static_cast<int>(resources.trade);
+    int diplomacyBalance = static_cast<int>(resources.diplomacy);
+
+    m_tradeBalanceLabel->setText(QStringLiteral("Доступно торговли: %1").arg(tradeBalance));
+    m_tradeRateLabel->setText(QStringLiteral("Курс обмена: x%1").arg(tradeMultiplier, 0, 'f', 1));
+    m_tradeAmountSpin->setMaximum(tradeBalance);
+
+    m_diplomacyBalanceLabel->setText(QStringLiteral("Доступно дипломатии: %1").arg(diplomacyBalance));
+
+    m_politicalActionList->clear();
+    for (const auto& a : politicalActions) {
+        QString text = QString::fromStdString(a.getName())
+                       + QStringLiteral(" — %1 дипл.").arg(a.getCost());
+        bool canAfford = a.getCost() <= diplomacyBalance;
+
+        auto* item = new QListWidgetItem(text, m_politicalActionList);
+        item->setData(Qt::UserRole, QString::fromStdString(a.getId()));
+        if (!canAfford)
+            item->setFlags(item->flags() & ~Qt::ItemIsEnabled);
+    }
+}
+
 void SettlementPanel::clearSettlement() {
     m_settlement = nullptr;
     m_buildingCatalog.clear();
@@ -219,6 +304,14 @@ void SettlementPanel::clearSettlement() {
     m_availableUnitsList->clear();
     m_recruitQueueList->clear();
     m_garrisonList->clear();
+    m_tradeBalanceLabel->setText(QStringLiteral("Доступно торговли: 0"));
+    m_tradeRateLabel->setText(QStringLiteral("Курс обмена: x1.0"));
+    m_tradeAmountSpin->setValue(0);
+    m_tradeAmountSpin->setMaximum(0);
+    m_tradeResultLabel->setText(QStringLiteral(""));
+    m_diplomacyBalanceLabel->setText(QStringLiteral("Доступно дипломатии: 0"));
+    m_politicalActionList->clear();
+    m_politicalActionCatalog.clear();
     setEnabled(false);
 }
 
@@ -308,4 +401,22 @@ void SettlementPanel::onQueueRecruitment() {
     }
 
     showSettlement(*m_settlement, m_buildingCatalog, m_unitCatalog);
+}
+
+void SettlementPanel::onExchangeTrade() {
+    if (!m_settlement) return;
+
+    int amount = m_tradeAmountSpin->value();
+    if (amount <= 0) return;
+
+    QString targetResource = m_tradeTargetCombo->currentData().toString();
+    emit tradeExchangeRequested(targetResource.toStdString(), amount);
+}
+
+void SettlementPanel::onExecutePoliticalAction() {
+    auto selected = m_politicalActionList->currentItem();
+    if (!selected) return;
+
+    std::string actionId = selected->data(Qt::UserRole).toString().toStdString();
+    emit politicalActionRequested(actionId);
 }
