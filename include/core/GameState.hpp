@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -19,6 +20,13 @@ struct ActiveAlliance
     int expiryTurn;
 };
 
+struct VictoryResult
+{
+    int winnerId = -1;
+    std::string type;
+    bool hasWinner() const { return winnerId >= 0; }
+};
+
 class GameState
 {
 private:
@@ -26,6 +34,7 @@ private:
     std::vector<Player> m_players;
     std::vector<ActiveAlliance> m_alliances;
     std::unordered_map<int, int> m_vassalizations;
+    int m_politicalConquestWinnerId = -1;
     Map m_map;
     GlobalPhase m_globalPhase = GlobalPhase::NotStarted;
 
@@ -49,4 +58,6 @@ public:
     void applyVassalize(int masterId, int vassalId);
     void processVassalage();
     const std::unordered_map<int, int> &vassalizations() const { return m_vassalizations; }
+    void applyPoliticalConquest(int conquerorId, int targetId);
+    VictoryResult checkVictory() const;
 };

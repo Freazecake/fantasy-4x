@@ -126,7 +126,11 @@ std::string GameEngine::applyPoliticalAction(int playerId, const std::string &ac
             return "Вассализация проведена";
 
         case PoliticalActionType::PoliticalConquest:
-            return "Политическое поглощение пока не реализовано";
+            if (!target) return "Цель не найдена";
+            m_state.applyPoliticalConquest(playerId, targetId);
+            if (m_state.checkVictory().hasWinner())
+                return "ПОЛИТИЧЕСКАЯ ПОБЕДА!";
+            return "Политическое поглощение проведено";
         }
     }
     return "Действие не найдено";

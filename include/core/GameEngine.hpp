@@ -22,6 +22,7 @@ public:
     bool loadFromAssets(const std::string &assetsDir);
     void endTurn();
     std::string applyPoliticalAction(int playerId, const std::string &actionId, int targetId);
+    VictoryResult checkVictoryCondition() const { return m_state.checkVictory(); }
 
     const GameState &state() const { return m_state; }
     GameState &state() { return m_state; }

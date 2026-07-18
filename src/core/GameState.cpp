@@ -84,3 +84,51 @@ void GameState::processVassalage()
         }
     }
 }
+
+void GameState::applyPoliticalConquest(int conquerorId, int targetId)
+{
+    Player *conqueror = nullptr, *target = nullptr;
+    for (auto &p : m_players)
+    {
+        if (p.id() == conquerorId) conqueror = &p;
+        if (p.id() == targetId) target = &p;
+    }
+    if (!conqueror || !target) return;
+
+    for (auto &s : target->settlements())
+    {
+        s.setOwnerId(conquerorId);
+        conqueror->addSettlement(s);
+    }
+    target->settlements().clear();
+
+    Resources taken = target->takeFractionFromEconomy(1.0f);
+    conqueror->addResources(taken);
+
+    int aliveCount = 0;
+    for (const auto &p : m_players)
+        if (!p.settlements().empty())
+            ++aliveCount;
+    if (aliveCount <= 1)
+        m_politicalConquestWinnerId = conquerorId;
+}
+
+VictoryResult GameState::checkVictory() const
+{
+    if (m_politicalConquestWinnerId >= 0)
+        return {m_politicalConquestWinnerId, "political"};
+
+    int aliveId = -1, aliveCount = 0;
+    for (const auto &p : m_players)
+    {
+        if (!p.settlements().empty())
+        {
+            ++aliveCount;
+            aliveId = p.id();
+        }
+    }
+    if (aliveCount == 1)
+        return {aliveId, "military"};
+
+    return {};
+}

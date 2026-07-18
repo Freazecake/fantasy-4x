@@ -261,3 +261,131 @@ TEST_CASE("GameState::processVassalage: передаёт 30% накопленн�
     CHECK_NEAR(state.players()[0].resources().science, 26.0f, 0.1f);  // 20 + 6
     CHECK_NEAR(state.players()[0].resources().industry, 13.0f, 0.1f); // 10 + 3
 }
+
+// --- Political Conquest ---
+
+TEST_CASE("GameState::applyPoliticalConquest: поселения цели переходят завоевателю")
+{
+    GameState state;
+    for (int id : {0, 1})
+    {
+        Player p;
+        p.setId(id);
+        Settlement s(id, SettlementType::Village);
+        s.seedInitialPopulation(10);
+        p.addSettlement(s);
+        // второе поселение
+        Settlement s2(id, SettlementType::Town);
+        s2.seedInitialPopulation(10);
+        p.addSettlement(s2);
+        state.addPlayer(p);
+    }
+
+    state.applyPoliticalConquest(0, 1);
+
+    CHECK(state.players()[1].settlements().empty());
+    CHECK(state.players()[0].settlements().size() == 4u); // 2 своих + 2 цели
+    for (const auto &s : state.players()[0].settlements())
+        CHECK(s.ownerId() == 0);
+}
+
+TEST_CASE("GameState::applyPoliticalConquest: ресурсы цели переходят завоевателю")
+{
+    GameState state;
+    for (int id : {0, 1})
+    {
+        Player p;
+        p.setId(id);
+        p.setRace(makeRace("humans"));
+        Settlement s(id, SettlementType::Village);
+        s.seedInitialPopulation(80);
+        s.assignFromIdle(Sphere::Science, 20);
+        p.addSettlement(s);
+        p.advanceTurn();
+        state.addPlayer(p);
+    }
+
+    state.applyPoliticalConquest(0, 1);
+
+    // У цели 0 ресурсов
+    CHECK_NEAR(state.players()[1].resources().science, 0.0f, 0.1f);
+    // У завоевателя были свои 20 + забрал 20 у цели
+    CHECK_NEAR(state.players()[0].resources().science, 40.0f, 0.1f);
+}
+
+TEST_CASE("GameState::applyPoliticalConquest: если остался 1 игрок → политическая победа")
+{
+    GameState state;
+    for (int id : {0, 1})
+    {
+        Player p;
+        p.setId(id);
+        Settlement s(id, SettlementType::Village);
+        s.seedInitialPopulation(10);
+        p.addSettlement(s);
+        state.addPlayer(p);
+    }
+
+    state.applyPoliticalConquest(0, 1);
+
+    VictoryResult v = state.checkVictory();
+    CHECK(v.hasWinner());
+    CHECK(v.winnerId == 0);
+    CHECK(v.type == "political");
+}
+
+TEST_CASE("GameState::applyPoliticalConquest: при 3+ игроках conquest не даёт победу")
+{
+    GameState state;
+    for (int id : {0, 1, 2})
+    {
+        Player p;
+        p.setId(id);
+        Settlement s(id, SettlementType::Village);
+        s.seedInitialPopulation(10);
+        p.addSettlement(s);
+        state.addPlayer(p);
+    }
+
+    state.applyPoliticalConquest(0, 1);
+
+    VictoryResult v = state.checkVictory();
+    CHECK(!v.hasWinner());
+}
+
+// --- checkVictory (military) ---
+
+TEST_CASE("GameState::checkVictory: military — один игрок без поселений → победы нет")
+{
+    GameState state;
+    Player p1, p2;
+    p1.setId(0);
+    p2.setId(1);
+    Settlement s(0, SettlementType::Village);
+    s.seedInitialPopulation(10);
+    p1.addSettlement(s);
+    // p2 without settlements
+    state.addPlayer(p1);
+    state.addPlayer(p2);
+
+    VictoryResult v = state.checkVictory();
+    CHECK(v.hasWinner());
+    CHECK(v.winnerId == 0);
+    CHECK(v.type == "military");
+}
+
+TEST_CASE("GameState::checkVictory: military — все игроки с поселениями → нет победы")
+{
+    GameState state;
+    for (int id : {0, 1})
+    {
+        Player p;
+        p.setId(id);
+        Settlement s(id, SettlementType::Village);
+        s.seedInitialPopulation(10);
+        p.addSettlement(s);
+        state.addPlayer(p);
+    }
+
+    CHECK(!state.checkVictory().hasWinner());
+}
