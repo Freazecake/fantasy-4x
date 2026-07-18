@@ -61,3 +61,26 @@ void GameState::applyDemandTribute(int sourceId, int targetId)
     Resources taken = target->takeFractionFromEconomy(0.3f);
     source->addResources(taken);
 }
+
+void GameState::applyVassalize(int masterId, int vassalId)
+{
+    m_vassalizations[vassalId] = masterId;
+}
+
+void GameState::processVassalage()
+{
+    for (const auto &[vassalId, masterId] : m_vassalizations)
+    {
+        Player *vassal = nullptr, *master = nullptr;
+        for (auto &p : m_players)
+        {
+            if (p.id() == vassalId) vassal = &p;
+            if (p.id() == masterId) master = &p;
+        }
+        if (vassal && master)
+        {
+            Resources taken = vassal->takeFractionFromEconomy(0.3f);
+            master->addResources(taken);
+        }
+    }
+}

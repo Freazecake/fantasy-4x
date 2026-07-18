@@ -1,5 +1,6 @@
 #pragma once
 
+#include <unordered_map>
 #include <vector>
 
 #include "Player.hpp"
@@ -24,6 +25,7 @@ private:
     int m_turnNumber = 0;
     std::vector<Player> m_players;
     std::vector<ActiveAlliance> m_alliances;
+    std::unordered_map<int, int> m_vassalizations;
     Map m_map;
     GlobalPhase m_globalPhase = GlobalPhase::NotStarted;
 
@@ -44,4 +46,7 @@ public:
 
     void checkAlliances();
     void applyDemandTribute(int sourceId, int targetId);
+    void applyVassalize(int masterId, int vassalId);
+    void processVassalage();
+    const std::unordered_map<int, int> &vassalizations() const { return m_vassalizations; }
 };

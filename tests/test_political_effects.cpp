@@ -215,3 +215,49 @@ TEST_CASE("GameState::applyDemandTribute: не падает если цель н
 
     CHECK_NOTHROW(state.applyDemandTribute(0, 999));
 }
+
+// --- Vassalization ---
+
+TEST_CASE("GameState::applyVassalize: записывает вассалитет")
+{
+    GameState state;
+    Player p1, p2;
+    p1.setId(0); p2.setId(1);
+    state.addPlayer(p1);
+    state.addPlayer(p2);
+
+    state.applyVassalize(0, 1);
+
+    CHECK(state.vassalizations().size() == 1u);
+    CHECK(state.vassalizations().at(1) == 0);
+}
+
+TEST_CASE("GameState::processVassalage: передаёт 30% накопленных ресурсов вассала хозяину")
+{
+    GameState state;
+    for (int id : {0, 1})
+    {
+        Player p;
+        p.setId(id);
+        p.setRace(makeRace("humans"));
+        Settlement s(id, SettlementType::Village);
+        s.seedInitialPopulation(80);
+        s.assignFromIdle(Sphere::Science, 20);
+        s.assignFromIdle(Sphere::Industry, 10);
+        p.addSettlement(s);
+        p.advanceTurn();
+        state.addPlayer(p);
+    }
+
+    // advanceTurn дал игроку 1 (вассалу): science=20, industry=10
+    state.applyVassalize(0, 1);
+    state.processVassalage();
+
+    // Вассал потерял 30%
+    CHECK_NEAR(state.players()[1].resources().science, 14.0f, 0.1f);  // 20 - 6
+    CHECK_NEAR(state.players()[1].resources().industry, 7.0f, 0.1f);  // 10 - 3
+
+    // Хозяин получил 30% от вассала
+    CHECK_NEAR(state.players()[0].resources().science, 26.0f, 0.1f);  // 20 + 6
+    CHECK_NEAR(state.players()[0].resources().industry, 13.0f, 0.1f); // 10 + 3
+}

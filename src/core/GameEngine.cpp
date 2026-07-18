@@ -121,7 +121,9 @@ std::string GameEngine::applyPoliticalAction(int playerId, const std::string &ac
             return "Дань потребована";
 
         case PoliticalActionType::Vassalize:
-            return "Вассализация пока не реализована";
+            if (!target) return "Цель не найдена";
+            m_state.applyVassalize(playerId, targetId);
+            return "Вассализация проведена";
 
         case PoliticalActionType::PoliticalConquest:
             return "Политическое поглощение пока не реализовано";
@@ -133,8 +135,12 @@ std::string GameEngine::applyPoliticalAction(int playerId, const std::string &ac
 void GameEngine::endTurn()
 {
     for (auto &player : m_state.players())
-    {
         player.advanceTurn();
+
+    m_state.processVassalage();
+
+    for (auto &player : m_state.players())
+    {
         for (auto &settlement : player.settlements())
         {
             settlement.growPopulation(DEFAULT_BASE_GROWTH_RATE,
