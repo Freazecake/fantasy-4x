@@ -389,3 +389,38 @@ TEST_CASE("GameState::checkVictory: military — все игроки с посе
 
     CHECK(!state.checkVictory().hasWinner());
 }
+
+TEST_CASE("GameState::checkVictory: military — 1 игрок всего → нет победы (никого не победил)")
+{
+    GameState state;
+    Player p;
+    p.setId(0);
+    Settlement s(0, SettlementType::Village);
+    s.seedInitialPopulation(10);
+    p.addSettlement(s);
+    state.addPlayer(p);
+
+    CHECK(!state.checkVictory().hasWinner());
+}
+
+TEST_CASE("GameState::checkVictory: military — 1 живой из 2 → победа")
+{
+    GameState state;
+    for (int id : {0, 1})
+    {
+        Player p;
+        p.setId(id);
+        if (id == 0)
+        {
+            Settlement s(0, SettlementType::Village);
+            s.seedInitialPopulation(10);
+            p.addSettlement(s);
+        }
+        state.addPlayer(p);
+    }
+
+    VictoryResult v = state.checkVictory();
+    CHECK(v.hasWinner());
+    CHECK(v.winnerId == 0);
+    CHECK(v.type == "military");
+}

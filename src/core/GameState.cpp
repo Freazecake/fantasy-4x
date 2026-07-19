@@ -135,7 +135,7 @@ VictoryResult GameState::checkVictory() const
             aliveId = p.id();
         }
     }
-    if (aliveCount == 1)
+    if (aliveCount == 1 && m_players.size() > 1)
         return {aliveId, "military"};
 
     return {};
