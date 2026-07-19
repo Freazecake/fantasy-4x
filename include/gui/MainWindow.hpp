@@ -25,6 +25,7 @@ private slots:
 private:
     QWidget* buildGameView();
     void refreshAllPanels();
+    void showVictoryDialog(const VictoryResult& v);
 
     GameEngine m_engine;
 

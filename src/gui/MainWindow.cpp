@@ -12,6 +12,7 @@
 #include <QVBoxLayout>
 #include <QWidget>
 #include <QApplication>
+#include <QMessageBox>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -106,29 +107,14 @@ QWidget* MainWindow::buildGameView() {
         });
 
     connect(m_settlementPanel, &SettlementPanel::politicalActionRequested, this,
-        [this](const std::string& actionId) {
-            Player& human = m_engine.state().players()[0];
-            for (const auto& a : m_engine.politicalActionCatalog()) {
-                if (a.getId() == actionId) {
-                    if (human.trySpendOnPoliticalAction(a)) {
-                        QString msg;
-                        switch (a.getType()) {
-                            case PoliticalActionType::Alliance:
-                                msg = QStringLiteral("Союз заключён"); break;
-                            case PoliticalActionType::DemandTribute:
-                                msg = QStringLiteral("Дань потребована"); break;
-                            case PoliticalActionType::Vassalize:
-                                msg = QStringLiteral("Вассализация проведена"); break;
-                            case PoliticalActionType::PoliticalConquest:
-                                msg = QStringLiteral("ПОЛИТИЧЕСКАЯ ПОБЕДА!"); break;
-                        }
-                        statusBar()->showMessage(msg, 5000);
-                    } else {
-                        statusBar()->showMessage(QStringLiteral("Недостаточно дипломатии"), 3000);
-                    }
-                    break;
-                }
-            }
+        [this](const std::string& actionId, int targetId) {
+            std::string msg = m_engine.applyPoliticalAction(0, actionId, targetId);
+            statusBar()->showMessage(QString::fromStdString(msg), 5000);
+
+            auto v = m_engine.checkVictoryCondition();
+            if (v.hasWinner())
+                showVictoryDialog(v);
+
             refreshAllPanels();
         });
 
@@ -182,6 +168,11 @@ void MainWindow::refreshAllPanels() {
         human.resources(),
         human.effectiveTradeMultiplier(),
         m_engine.politicalActionCatalog());
+
+    std::vector<int> opponentIds;
+    for (const auto& p : m_engine.state().players())
+        if (p.id() != 0) opponentIds.push_back(p.id());
+    m_settlementPanel->setOpponents(opponentIds);
 }
 
 void MainWindow::onTileClicked(int q, int r) {
@@ -212,7 +203,23 @@ void MainWindow::onEndTurn() {
     if (m_stack->currentIndex() != 1) return;
 
     m_engine.endTurn();
+
+    auto v = m_engine.checkVictoryCondition();
+    if (v.hasWinner()) {
+        showVictoryDialog(v);
+        return;
+    }
+
     refreshAllPanels();
     statusBar()->showMessage(
         QStringLiteral("Ход %1 завершён").arg(m_engine.state().turnNumber()), 3000);
+}
+
+void MainWindow::showVictoryDialog(const VictoryResult& v) {
+    QString typeStr = v.type == "political"
+        ? QStringLiteral("Политическая победа")
+        : QStringLiteral("Военная победа");
+    QMessageBox::information(this, QStringLiteral("Победа!"),
+        QStringLiteral("Игрок %1 победил! (%2)").arg(v.winnerId).arg(typeStr));
+    m_stack->setCurrentIndex(0);
 }

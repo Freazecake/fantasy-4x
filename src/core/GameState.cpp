@@ -53,10 +53,13 @@ void GameState::applyDemandTribute(int sourceId, int targetId)
     Player *source = nullptr, *target = nullptr;
     for (auto &p : m_players)
     {
-        if (p.id() == sourceId) source = &p;
-        if (p.id() == targetId) target = &p;
+        if (p.id() == sourceId)
+            source = &p;
+        if (p.id() == targetId)
+            target = &p;
     }
-    if (!source || !target) return;
+    if (!source || !target)
+        return;
 
     Resources taken = target->takeFractionFromEconomy(0.3f);
     source->addResources(taken);
@@ -74,8 +77,10 @@ void GameState::processVassalage()
         Player *vassal = nullptr, *master = nullptr;
         for (auto &p : m_players)
         {
-            if (p.id() == vassalId) vassal = &p;
-            if (p.id() == masterId) master = &p;
+            if (p.id() == vassalId)
+                vassal = &p;
+            if (p.id() == masterId)
+                master = &p;
         }
         if (vassal && master)
         {
@@ -90,10 +95,13 @@ void GameState::applyPoliticalConquest(int conquerorId, int targetId)
     Player *conqueror = nullptr, *target = nullptr;
     for (auto &p : m_players)
     {
-        if (p.id() == conquerorId) conqueror = &p;
-        if (p.id() == targetId) target = &p;
+        if (p.id() == conquerorId)
+            conqueror = &p;
+        if (p.id() == targetId)
+            target = &p;
     }
-    if (!conqueror || !target) return;
+    if (!conqueror || !target)
+        return;
 
     for (auto &s : target->settlements())
     {
