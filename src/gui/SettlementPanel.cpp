@@ -158,6 +158,12 @@ void SettlementPanel::setupUi() {
     m_diplomacyBalanceLabel = new QLabel(QStringLiteral("Доступно дипломатии: 0"), diplomacyGroup);
     diplomacyLayout->addWidget(m_diplomacyBalanceLabel);
 
+    diplomacyLayout->addSpacing(4);
+
+    diplomacyLayout->addWidget(new QLabel(QStringLiteral("Цель:"), diplomacyGroup));
+    m_politicalTargetCombo = new QComboBox(diplomacyGroup);
+    diplomacyLayout->addWidget(m_politicalTargetCombo);
+
     diplomacyLayout->addSpacing(8);
 
     m_politicalActionList = new QListWidget(diplomacyGroup);
@@ -289,6 +295,14 @@ void SettlementPanel::updateTradeDiplomacy(const Resources& resources,
     }
 }
 
+void SettlementPanel::setOpponents(const std::vector<int>& opponentIds) {
+    m_opponentIds = opponentIds;
+    m_politicalTargetCombo->clear();
+    for (int id : opponentIds)
+        m_politicalTargetCombo->addItem(
+            QStringLiteral("Игрок %1").arg(id), id);
+}
+
 void SettlementPanel::clearSettlement() {
     m_settlement = nullptr;
     m_buildingCatalog.clear();
@@ -310,6 +324,8 @@ void SettlementPanel::clearSettlement() {
     m_tradeAmountSpin->setMaximum(0);
     m_tradeResultLabel->setText(QStringLiteral(""));
     m_diplomacyBalanceLabel->setText(QStringLiteral("Доступно дипломатии: 0"));
+    m_politicalTargetCombo->clear();
+    m_opponentIds.clear();
     m_politicalActionList->clear();
     m_politicalActionCatalog.clear();
     setEnabled(false);
@@ -418,5 +434,6 @@ void SettlementPanel::onExecutePoliticalAction() {
     if (!selected) return;
 
     std::string actionId = selected->data(Qt::UserRole).toString().toStdString();
-    emit politicalActionRequested(actionId);
+    int targetId = m_politicalTargetCombo->currentData().toInt();
+    emit politicalActionRequested(actionId, targetId);
 }

@@ -91,17 +91,67 @@ bool GameEngine::loadFromAssets(const std::string &assetsDir)
     return true;
 }
 
+std::string GameEngine::applyPoliticalAction(int playerId, const std::string &actionId, int targetId)
+{
+    Player *player = nullptr, *target = nullptr;
+    for (auto &p : m_state.players())
+    {
+        if (p.id() == playerId) player = &p;
+        if (p.id() == targetId) target = &p;
+    }
+    if (!player) return "Игрок не найден";
+
+    for (const auto &a : m_politicalActionCatalog)
+    {
+        if (a.getId() != actionId) continue;
+
+        if (!player->trySpendOnPoliticalAction(a))
+            return "Недостаточно дипломатии";
+
+        switch (a.getType())
+        {
+        case PoliticalActionType::Alliance:
+            if (!target) return "Цель не найдена";
+            m_state.newAlliance(*player, *target, m_state.turnNumber() + 5);
+            return "Союз заключён";
+
+        case PoliticalActionType::DemandTribute:
+            if (!target) return "Цель не найдена";
+            m_state.applyDemandTribute(playerId, targetId);
+            return "Дань потребована";
+
+        case PoliticalActionType::Vassalize:
+            if (!target) return "Цель не найдена";
+            m_state.applyVassalize(playerId, targetId);
+            return "Вассализация проведена";
+
+        case PoliticalActionType::PoliticalConquest:
+            if (!target) return "Цель не найдена";
+            m_state.applyPoliticalConquest(playerId, targetId);
+            if (m_state.checkVictory().hasWinner())
+                return "ПОЛИТИЧЕСКАЯ ПОБЕДА!";
+            return "Политическое поглощение проведено";
+        }
+    }
+    return "Действие не найдено";
+}
+
 void GameEngine::endTurn()
 {
     for (auto &player : m_state.players())
-    {
         player.advanceTurn();
+
+    m_state.processVassalage();
+
+    for (auto &player : m_state.players())
+    {
         for (auto &settlement : player.settlements())
         {
             settlement.growPopulation(DEFAULT_BASE_GROWTH_RATE,
-                                       player.race().getModifiers().growth);
+                                      player.race().getModifiers().growth);
             player.spendIndustryOnQueues(settlement);
         }
     }
+    m_state.checkAlliances();
     m_state.nextTurn();
 }

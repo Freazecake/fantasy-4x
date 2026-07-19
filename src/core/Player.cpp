@@ -58,7 +58,7 @@ int Player::investScience(int points)
     return 0;
 }
 
-void Player::spendIndustryOnQueues(Settlement& settlement)
+void Player::spendIndustryOnQueues(Settlement &settlement)
 {
     int bankIndustry = static_cast<int>(m_economy.totals().industry);
     if (bankIndustry <= 0)
@@ -87,7 +87,7 @@ void Player::advanceTurn()
         Resources income = Economy::computeSettlementIncome(
             settlement, m_race.getModifiers(), settlement.builtBuildings(), m_heroes);
 
-        int currentIndustry = static_cast<int>(income.industry);
+                int currentIndustry = static_cast<int>(income.industry);
 
         auto buildResult = settlement.progressBuildingQueue(currentIndustry);
         currentIndustry -= buildResult.spentIndustry;
@@ -118,6 +118,9 @@ float Player::effectiveTradeMultiplier() const
         for (const auto &building : settlement.builtBuildings())
             multiplier *= building.getModifiers().trade;
 
+    if (m_allianceBonus)
+        multiplier *= 1.2;
+
     return multiplier;
 }
 
@@ -129,6 +132,19 @@ bool Player::exchangeTrade(const std::string &targetResource, int tradeToSpend)
     TradeExchangeResult result = TradeMarket::exchange(effectiveTradeMultiplier(), targetResource, tradeToSpend);
     m_economy.addResource(result.receivedResourceType, result.received);
     return true;
+}
+
+Resources Player::takeFractionFromEconomy(float fraction)
+{
+    Resources total = m_economy.totals();
+    Resources taken = total * fraction;
+    m_economy.accumulate(taken * (-1.0f));
+    return taken;
+}
+
+void Player::addResources(const Resources &res)
+{
+    m_economy.accumulate(res);
 }
 
 bool Player::trySpendOnPoliticalAction(const PoliticalAction &action)

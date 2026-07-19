@@ -148,6 +148,53 @@ QSpinBox::up-button:hover, QSpinBox::down-button:hover {
     background-color: #4a3a1f;
 }
 
+/* ---------- Выпадающие списки (QComboBox) ---------- */
+QComboBox {
+    background-color: #1a140e;
+    border: 3px solid #8a6d3b;
+    color: #e8dcc0;
+    padding: 4px 8px;
+    font-size: 13pt;
+}
+QComboBox:hover {
+    border-color: #d4af37;
+}
+QComboBox:focus {
+    border-color: #d4af37;
+}
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 22px;
+    border-left: 2px solid #8a6d3b;
+    background-color: #241c14;
+}
+QComboBox::drop-down:hover {
+    background-color: #4a3a1f;
+}
+QComboBox::down-arrow {
+    image: none;
+    width: 0px;
+    height: 0px;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid #d4af37;
+    margin-right: 6px;
+}
+QComboBox QAbstractItemView {
+    background-color: #1a140e;
+    border: 3px solid #8a6d3b;
+    color: #e8dcc0;
+    selection-background-color: #4a3a1f;
+    selection-color: #d4af37;
+    outline: none;
+    font-size: 13pt;
+    padding: 2px;
+}
+QComboBox QAbstractItemView::item {
+    padding: 4px 8px;
+}
+
 /* ---------- Обычные подписи ---------- */
 QLabel {
     color: #e8dcc0;
