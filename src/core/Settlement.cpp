@@ -187,3 +187,27 @@ RecruitmentProgressResult Settlement::progressRecruitmentQueue(int industryPoint
 
     return result;
 }
+
+std::vector<Unit> Settlement::removeFromGarrison(const std::vector<std::string> &unitIds)
+{
+    std::vector<Unit> removed;
+    for (const auto &id : unitIds)
+    {
+        for (auto it = m_garrison.begin(); it != m_garrison.end(); ++it)
+        {
+            if (it->getId() == id)
+            {
+                removed.push_back(*it);
+                m_garrison.erase(it);
+                break;
+            }
+        }
+    }
+    return removed;
+}
+
+void Settlement::addToGarrison(const std::vector<Unit> &units)
+{
+    for (const auto &u : units)
+        m_garrison.push_back(u);
+}

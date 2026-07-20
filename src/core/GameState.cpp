@@ -140,3 +140,16 @@ VictoryResult GameState::checkVictory() const
 
     return {};
 }
+
+Army *GameState::findArmy(const std::string &id)
+{
+    for (auto &p : m_players)
+    {
+        for (auto &a : p.armies())
+        {
+            if (a.getId() == id)
+                return &a;
+        }
+    }
+    return nullptr;
+}

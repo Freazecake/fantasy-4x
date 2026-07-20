@@ -6,6 +6,7 @@
 
 #include "Player.hpp"
 #include "Map.hpp"
+#include "Army.hpp"
 
 enum class GlobalPhase
 {
@@ -60,4 +61,6 @@ public:
     const std::unordered_map<int, int> &vassalizations() const { return m_vassalizations; }
     void applyPoliticalConquest(int conquerorId, int targetId);
     VictoryResult checkVictory() const;
+
+    Army *findArmy(const std::string &id);
 };
