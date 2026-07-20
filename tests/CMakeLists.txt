@@ -43,6 +43,7 @@ add_executable(game_tests
     test_player.cpp
     test_data_integrity.cpp
     test_week3_simulation.cpp
+    test_coords_army.cpp
 
     ${GAME_ROOT}/src/core/Race.cpp
     ${GAME_ROOT}/src/core/Tile.cpp
@@ -58,6 +59,7 @@ add_executable(game_tests
     ${GAME_ROOT}/src/core/TradeMarket.cpp
     ${GAME_ROOT}/src/core/Player.cpp
     ${GAME_ROOT}/src/core/GameState.cpp
+    ${GAME_ROOT}/src/core/Army.cpp
 )
 
 target_include_directories(game_tests PRIVATE
