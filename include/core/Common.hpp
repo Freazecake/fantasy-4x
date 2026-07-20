@@ -101,4 +101,5 @@ struct UnitStats
     float attack = 0.0f;
     float defense = 0.0f;
     float health = 0.0f;
+    int movementPoints = 0;
 };

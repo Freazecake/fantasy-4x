@@ -12,6 +12,7 @@ Unit Unit::loadFromJson(const json &obj)
     u.m_stats.health = statsJson["health"].get<float>();
     u.m_stats.attack = statsJson["attack"].get<float>();
     u.m_stats.defense = statsJson["defense"].get<float>();
+    u.m_stats.movementPoints = statsJson["movementPoints"].get<int>();
 
     u.m_tier = obj["tier"].get<int>();
     u.m_requiredBuildingId = obj["requiredBuildingId"].get<std::string>();

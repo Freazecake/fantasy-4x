@@ -34,6 +34,7 @@ public:
     const std::string &getRequiredBuildingId() const { return m_requiredBuildingId; }
     int getRecruitCost() const { return m_recruitCost; }
     int getPopulationCost() const { return m_populationCost; }
+    int getMovementPoints() const { return m_stats.movementPoints; }
 
     bool requiresBuilding() const { return !m_requiredBuildingId.empty(); }
 
