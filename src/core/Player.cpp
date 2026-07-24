@@ -87,7 +87,7 @@ void Player::advanceTurn()
         Resources income = Economy::computeSettlementIncome(
             settlement, m_race.getModifiers(), settlement.builtBuildings(), m_heroes);
 
-                int currentIndustry = static_cast<int>(income.industry);
+        int currentIndustry = static_cast<int>(income.industry);
 
         auto buildResult = settlement.progressBuildingQueue(currentIndustry);
         currentIndustry -= buildResult.spentIndustry;
@@ -150,4 +150,33 @@ void Player::addResources(const Resources &res)
 bool Player::trySpendOnPoliticalAction(const PoliticalAction &action)
 {
     return m_economy.trySpendDiplomacy(action.getCost());
+}
+
+Army Player::detachArmy(Settlement &from, const std::vector<std::string> &unitIds)
+{
+    std::vector<Unit> taken = from.removeFromGarrison(unitIds);
+    static int armyCounter = 0;
+    Coords pos = from.tiles().empty() ? Coords(0, 0) : from.tiles()[0].getCoords();
+    std::string aid = "army_p" + std::to_string(m_id) + "_" + std::to_string(armyCounter++);
+    Army army(aid, m_id, pos, taken);
+    m_armies.push_back(army);
+    return army;
+}
+
+void Player::disbandArmyIntoSettlement(Army &army, Settlement &target)
+{
+    target.addToGarrison(army.units());
+    removeArmy(army.getId());
+}
+
+void Player::removeArmy(const std::string &id)
+{
+    for (auto it = m_armies.begin(); it != m_armies.end(); ++it)
+    {
+        if (it->getId() == id)
+        {
+            m_armies.erase(it);
+            return;
+        }
+    }
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <vector>
 
 struct Coords
 {
@@ -10,6 +11,10 @@ struct Coords
     bool is_nearby(const Coords &) const;
     Coords() {};
     Coords(int q, int r) : q(q), r(r) {}
+
+    static const std::vector<Coords> &neighborOffsets();
+    int distanceTo(const Coords &b) const;
+    std::vector<Coords> neighbors() const;
 };
 
 enum class TileType
@@ -34,6 +39,7 @@ public:
     Coords getCoords() const { return coords; }
     TileType getType() const { return type; }
     bool is_nearby(const Tile &other) const { return this->coords.is_nearby(other.coords); }
+    int movementCost() const;
 };
 
 inline std::ostream &operator<<(std::ostream &os, const TileType &type)

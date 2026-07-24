@@ -34,11 +34,34 @@ void TurnPanel::setupUi() {
 
     layout->addWidget(resGroup);
 
+    layout->addSpacing(8);
+
+    layout->addWidget(new QLabel(QStringLiteral("Армии:"), this));
+    m_armyList = new QListWidget(this);
+    m_armyList->setMaximumHeight(120);
+    connect(m_armyList, &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
+        emit armySelected(item->data(Qt::UserRole).toString().toStdString());
+    });
+    layout->addWidget(m_armyList);
+
     layout->addStretch();
 
     m_endTurnBtn = new QPushButton(QStringLiteral("Конец хода"), this);
     connect(m_endTurnBtn, &QPushButton::clicked, this, &TurnPanel::endTurnClicked);
     layout->addWidget(m_endTurnBtn);
+}
+
+void TurnPanel::updateArmyList(const std::vector<Army>& armies) {
+    m_armyList->clear();
+    for (const auto& a : armies) {
+        QString text = QStringLiteral("Армия (%1, %2) — %3 юн., %4/5 ОД")
+            .arg(a.position().q).arg(a.position().r)
+            .arg(static_cast<int>(a.units().size()))
+            .arg(a.movementPointsRemaining())
+            .arg(a.movementPointsMax());
+        auto* item = new QListWidgetItem(text, m_armyList);
+        item->setData(Qt::UserRole, QString::fromStdString(a.getId()));
+    }
 }
 
 void TurnPanel::updateInfo(int turnNumber, const std::string& phase,

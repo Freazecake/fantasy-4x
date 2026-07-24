@@ -6,7 +6,8 @@
             "stats": {
                 "health": 20.0,
                 "attack": 3.0,
-                "defense": 2.0
+                "defense": 2.0,
+                "movementPoints": 2
             },
             "tier": 0,
             "requiredBuildingId": "",
@@ -19,7 +20,8 @@
             "stats": {
                 "health": 35.0,
                 "attack": 7.0,
-                "defense": 5.0
+                "defense": 5.0,
+                "movementPoints": 2
             },
             "tier": 1,
             "requiredBuildingId": "barracks",
@@ -32,7 +34,8 @@
             "stats": {
                 "health": 22.0,
                 "attack": 8.0,
-                "defense": 2.0
+                "defense": 2.0,
+                "movementPoints": 2
             },
             "tier": 1,
             "requiredBuildingId": "barracks",

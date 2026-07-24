@@ -21,6 +21,10 @@ private slots:
     void onTileHovered(const QString& info);
     void onEndTurn();
     void onNewGame();
+    void onArmySelected(const std::string& armyId);
+    void onArmyMoveRequested(const std::string& armyId, int q, int r);
+    void onSelectionCleared();
+    void onMarchRequested();
 
 private:
     QWidget* buildGameView();

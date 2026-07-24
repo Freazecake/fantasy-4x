@@ -153,5 +153,10 @@ void GameEngine::endTurn()
         }
     }
     m_state.checkAlliances();
+
+    for (auto &player : m_state.players())
+        for (auto &army : player.armies())
+            army.resetMovement();
+
     m_state.nextTurn();
 }

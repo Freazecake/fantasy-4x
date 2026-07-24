@@ -133,7 +133,13 @@ public:
     void queueUnitRecruitment(const Unit &unit);
     RecruitmentProgressResult progressRecruitmentQueue(int industryPoints);
     const std::vector<Unit> &garrison() const { return m_garrison; }
+    std::vector<Unit> removeFromGarrison(const std::vector<std::string> &unitIds);
+    void addToGarrison(const std::vector<Unit> &units);
     const std::vector<RecruitmentItem> &recruitmentQueue() const { return m_recruitmentQueue; }
 
     std::string debugString() const;
+    bool operator==(const Settlement &other) const
+    {
+        return this == &other;
+    }
 };

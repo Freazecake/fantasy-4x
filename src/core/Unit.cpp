@@ -12,6 +12,8 @@ Unit Unit::loadFromJson(const json &obj)
     u.m_stats.health = statsJson["health"].get<float>();
     u.m_stats.attack = statsJson["attack"].get<float>();
     u.m_stats.defense = statsJson["defense"].get<float>();
+    u.m_stats.movementPoints = statsJson.value("movementPoints", 2);
+    u.m_currentHealth = u.m_stats.health;
 
     u.m_tier = obj["tier"].get<int>();
     u.m_requiredBuildingId = obj["requiredBuildingId"].get<std::string>();
@@ -34,7 +36,7 @@ std::string Unit::toString() const
 {
     std::ostringstream oss;
     oss << m_id << " | " << m_name << " (tier " << m_tier << ")"
-        << "| hp=" << m_stats.health
+        << "| hp=" << m_currentHealth << "/" << m_stats.health
         << ", atk=" << m_stats.attack
         << ", def=" << m_stats.defense
         << ", recruitCost=" << m_recruitCost

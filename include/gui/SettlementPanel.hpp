@@ -39,6 +39,7 @@ signals:
     void actionFailed(const QString& message);
     void tradeExchangeRequested(const std::string& targetResource, int amount);
     void politicalActionRequested(const std::string& actionId, int targetId);
+    void marchRequested();
 
 private slots:
     void onApplyAllocation();
@@ -46,6 +47,7 @@ private slots:
     void onQueueRecruitment();
     void onExchangeTrade();
     void onExecutePoliticalAction();
+    void onMarch();
 
 private:
     void setupUi();
@@ -69,6 +71,7 @@ private:
     QPushButton* m_recruitBtn;
     QListWidget* m_recruitQueueList;
     QListWidget* m_garrisonList;
+    QPushButton* m_marchBtn;
 
     // Trade tab
     QLabel* m_tradeBalanceLabel;

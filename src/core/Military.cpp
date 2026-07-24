@@ -52,7 +52,7 @@ UnitStats Military::effectiveStats(const Unit &unit,
     for (const auto &building : builtBuildings)
         militaryMultiplier *= building.getModifiers().military;
 
-    if (!hasUntrainedPenaltyRemoved(builtBuildings))
+    if (!unit.isTrained())
         militaryMultiplier *= UNTRAINED_PENALTY_MULTIPLIER;
 
     UnitStats stats = unit.getStats();

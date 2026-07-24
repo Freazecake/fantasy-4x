@@ -12,6 +12,7 @@
 #include "PoliticalAction.hpp"
 #include "TradeMarket.hpp"
 #include "Military.hpp"
+#include "Army.hpp"
 
 inline constexpr float DEFAULT_BASE_GROWTH_RATE = 0.1f;
 
@@ -27,6 +28,7 @@ class Player
 private:
     bool hasFoundedFirstSettlement() const { return !m_settlements.empty(); }
     std::vector<Settlement> m_settlements;
+    std::vector<Army> m_armies;
     std::vector<Hero> m_heroes;
     Economy m_economy;
     Race m_race;
@@ -62,6 +64,11 @@ public:
     const std::vector<Settlement> &settlements() const { return m_settlements; }
     std::vector<Settlement> &settlements() { return m_settlements; }
 
+    void addArmy(const Army &army) { m_armies.push_back(army); }
+    std::vector<Army> &armies() { return m_armies; }
+    const std::vector<Army> &armies() const { return m_armies; }
+    void removeArmy(const std::string &id);
+
     const Economy &economy() const { return m_economy; }
     const Resources &resources() const { return m_economy.totals(); }
 
@@ -90,6 +97,8 @@ public:
         return Military::effectiveStats(unit, settlement.builtBuildings(),
                                         m_race.getModifiers().military, m_heroes);
     }
+    Army detachArmy(Settlement &from, const std::vector<std::string> &unitIds);
+    void disbandArmyIntoSettlement(Army &army, Settlement &target);
 
     bool operator==(const Player &other) const
     {

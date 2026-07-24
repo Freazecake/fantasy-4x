@@ -62,8 +62,12 @@ QWidget* MainWindow::buildGameView() {
     centralSplitter->setStretchFactor(1, 2);
 
     connect(m_turnPanel, &TurnPanel::endTurnClicked, this, &MainWindow::onEndTurn);
+    connect(m_turnPanel, &TurnPanel::armySelected, this, &MainWindow::onArmySelected);
     connect(m_mapView, &MapView::tileClicked, this, &MainWindow::onTileClicked);
     connect(m_mapView, &MapView::tileHovered, this, &MainWindow::onTileHovered);
+    connect(m_mapView, &MapView::armySelected, this, &MainWindow::onArmySelected);
+    connect(m_mapView, &MapView::armyMoveRequested, this, &MainWindow::onArmyMoveRequested);
+    connect(m_mapView, &MapView::selectionCleared, this, &MainWindow::onSelectionCleared);
 
     connect(m_techTreePanel, &TechTreePanel::researchRequested, this,
         [this](const std::string& techId) {
@@ -93,6 +97,7 @@ QWidget* MainWindow::buildGameView() {
     connect(m_settlementPanel, &SettlementPanel::actionFailed, this, [this](const QString& msg) {
         statusBar()->showMessage(msg, 5000);
     });
+    connect(m_settlementPanel, &SettlementPanel::marchRequested, this, &MainWindow::onMarchRequested);
 
     connect(m_settlementPanel, &SettlementPanel::tradeExchangeRequested, this,
         [this](const std::string& targetResource, int amount) {
@@ -140,7 +145,11 @@ void MainWindow::refreshAllPanels() {
             settlementTiles.emplace_back(c.q, c.r);
         }
     }
-    m_mapView->renderMap(m_engine.state().map(), settlementTiles);
+
+    auto allArmies = human.armies();
+    m_mapView->clearReachableTiles();
+    m_mapView->renderMap(m_engine.state().map(), settlementTiles, allArmies);
+    m_turnPanel->updateArmyList(allArmies);
 
     if (!human.settlements().empty()) {
         m_settlementPanel->showSettlement(
@@ -197,6 +206,73 @@ void MainWindow::onTileClicked(int q, int r) {
 void MainWindow::onTileHovered(const QString& info) {
     if (m_stack->currentIndex() != 1) return;
     statusBar()->showMessage(info);
+}
+
+void MainWindow::onArmySelected(const std::string& armyId) {
+    Army* army = m_engine.state().findArmy(armyId);
+    if (!army) return;
+
+    m_mapView->setSelectedArmy(armyId);
+
+    auto reachable = m_engine.state().map().reachableTiles(
+        army->position(), army->movementPointsRemaining());
+    std::set<std::pair<int,int>> tileSet;
+    for (const auto& c : reachable)
+        tileSet.insert({c.q, c.r});
+    m_mapView->setReachableTiles(tileSet);
+
+    statusBar()->showMessage(
+        QStringLiteral("Армия выбрана: %1 юн., %2/%3 ОД")
+            .arg(static_cast<int>(army->units().size()))
+            .arg(army->movementPointsRemaining())
+            .arg(army->movementPointsMax()), 5000);
+}
+
+void MainWindow::onArmyMoveRequested(const std::string& armyId, int q, int r) {
+    auto result = m_engine.state().moveArmy(armyId, {q, r});
+    if (!result.success) {
+        statusBar()->showMessage(QString::fromStdString(result.errorMessage), 5000);
+        refreshAllPanels();
+        return;
+    }
+
+    if (result.combatOccurred) {
+        QString combatMsg;
+        if (result.settlementCaptured)
+            combatMsg = QStringLiteral("Поселение захвачено! ");
+        combatMsg += result.combat.attackerWon
+            ? QStringLiteral("Атака победила")
+            : QStringLiteral("Защита победила");
+        statusBar()->showMessage(combatMsg, 8000);
+    }
+
+    refreshAllPanels();
+    m_mapView->clearSelection();
+}
+
+void MainWindow::onSelectionCleared() {
+    m_mapView->clearSelection();
+    statusBar()->clearMessage();
+}
+
+void MainWindow::onMarchRequested() {
+    Settlement* settlement = m_settlementPanel->currentSettlement();
+    if (!settlement) return;
+
+    Player& human = m_engine.state().players()[0];
+
+    std::vector<std::string> allUnitIds;
+    for (const auto& u : settlement->garrison())
+        allUnitIds.push_back(u.getId());
+
+    if (allUnitIds.empty()) {
+        statusBar()->showMessage(QStringLiteral("Нет войск в гарнизоне"), 5000);
+        return;
+    }
+
+    human.detachArmy(*settlement, allUnitIds);
+    refreshAllPanels();
+    statusBar()->showMessage(QStringLiteral("Армия выступила в поход"), 5000);
 }
 
 void MainWindow::onEndTurn() {

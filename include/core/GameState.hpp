@@ -6,6 +6,8 @@
 
 #include "Player.hpp"
 #include "Map.hpp"
+#include "Army.hpp"
+#include "Combat.hpp"
 
 enum class GlobalPhase
 {
@@ -25,6 +27,15 @@ struct VictoryResult
     int winnerId = -1;
     std::string type;
     bool hasWinner() const { return winnerId >= 0; }
+};
+
+struct MoveResult
+{
+    bool success = false;
+    bool combatOccurred = false;
+    bool settlementCaptured = false;
+    std::string errorMessage;
+    CombatResult combat;
 };
 
 class GameState
@@ -60,4 +71,8 @@ public:
     const std::unordered_map<int, int> &vassalizations() const { return m_vassalizations; }
     void applyPoliticalConquest(int conquerorId, int targetId);
     VictoryResult checkVictory() const;
+
+    Army *findArmy(const std::string &id);
+    MoveResult moveArmy(const std::string &armyId, const Coords &destination);
+    CombatResult resolveMovementCombat(Army &attacker, const Coords &destination);
 };
