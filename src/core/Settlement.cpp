@@ -146,6 +146,9 @@ void Settlement::queueUnitRecruitment(const Unit &unit)
 {
     RecruitmentItem item = Military::queueUnit(unit, m_builtBuildings);
 
+    if (Military::hasUntrainedPenaltyRemoved(m_builtBuildings))
+        item.unit.setTrained(true);
+
     if (unit.getPopulationCost() > m_population.idle)
     {
         throw std::runtime_error(

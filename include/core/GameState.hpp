@@ -7,6 +7,7 @@
 #include "Player.hpp"
 #include "Map.hpp"
 #include "Army.hpp"
+#include "Combat.hpp"
 
 enum class GlobalPhase
 {
@@ -26,6 +27,15 @@ struct VictoryResult
     int winnerId = -1;
     std::string type;
     bool hasWinner() const { return winnerId >= 0; }
+};
+
+struct MoveResult
+{
+    bool success = false;
+    bool combatOccurred = false;
+    bool settlementCaptured = false;
+    std::string errorMessage;
+    CombatResult combat;
 };
 
 class GameState
@@ -63,4 +73,6 @@ public:
     VictoryResult checkVictory() const;
 
     Army *findArmy(const std::string &id);
+    MoveResult moveArmy(const std::string &armyId, const Coords &destination);
+    CombatResult resolveMovementCombat(Army &attacker, const Coords &destination);
 };

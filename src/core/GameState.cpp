@@ -153,3 +153,285 @@ Army *GameState::findArmy(const std::string &id)
     }
     return nullptr;
 }
+
+static Player *findPlayer(std::vector<Player> &players, int id)
+{
+    for (auto &p : players)
+        if (p.id() == id)
+            return &p;
+    return nullptr;
+}
+
+static Settlement *findSettlementAt(std::vector<Player> &players, int q, int r)
+{
+    for (auto &p : players)
+    {
+        for (auto &s : p.settlements())
+        {
+            for (const auto &t : s.tiles())
+            {
+                auto c = t.getCoords();
+                if (c.q == q && c.r == r)
+                    return &s;
+            }
+        }
+    }
+    return nullptr;
+}
+
+static bool isAllied(const std::vector<ActiveAlliance> &alliances, int a, int b)
+{
+    if (a == b)
+        return true;
+    for (const auto &al : alliances)
+    {
+        if ((al.playerA == a && al.playerB == b) || (al.playerA == b && al.playerB == a))
+            return true;
+    }
+    return false;
+}
+
+static float terrainBonus(TileType type)
+{
+    switch (type)
+    {
+    case TileType::Forest:
+        return 1.2f;
+    case TileType::Mountain:
+        return 1.5f;
+    default:
+        return 1.0f;
+    }
+}
+
+CombatResult GameState::resolveMovementCombat(Army &attacker, const Coords &destination)
+{
+    Player *attackerPlayer = findPlayer(m_players, attacker.getOwnerId());
+    if (!attackerPlayer)
+    {
+        CombatResult err;
+        return err;
+    }
+
+    float attackerRace = attackerPlayer->race().getModifiers().military;
+
+    const Tile *destTile = m_map.tileAt(destination.q, destination.r);
+    float defTerrain = destTile ? terrainBonus(destTile->getType()) : 1.0f;
+
+    for (auto &p : m_players)
+    {
+        if (p.id() == attacker.getOwnerId())
+            continue;
+        if (isAllied(m_alliances, attacker.getOwnerId(), p.id()))
+            continue;
+
+        for (auto &a : p.armies())
+        {
+            auto pos = a.position();
+            if (pos.q == destination.q && pos.r == destination.r)
+            {
+                std::vector<Unit> atkUnits = attacker.units();
+                std::vector<Unit> defUnits = a.units();
+                std::vector<Building> emptyBld;
+
+                CombatResult result = Combat::resolve(
+                    atkUnits, defUnits,
+                    attackerPlayer->heroes(), p.heroes(),
+                    defTerrain, emptyBld, attackerRace,
+                    p.race().getModifiers().military);
+
+                if (result.attackerWon)
+                {
+                    attacker.applyCasualties(result.attackerSurvivors);
+                    p.removeArmy(a.getId());
+                }
+                else if (result.isDraw)
+                {
+                    attacker.applyCasualties(result.attackerSurvivors);
+                    a.applyCasualties(result.defenderSurvivors);
+                }
+                else
+                {
+                    a.applyCasualties(result.defenderSurvivors);
+                    attackerPlayer->removeArmy(attacker.getId());
+                }
+                return result;
+            }
+        }
+    }
+
+    for (auto &p : m_players)
+    {
+        if (p.id() == attacker.getOwnerId())
+            continue;
+        if (isAllied(m_alliances, attacker.getOwnerId(), p.id()))
+            continue;
+
+        for (auto it = p.settlements().begin(); it != p.settlements().end(); ++it)
+        {
+            Settlement &s = *it;
+            bool tileMatch = false;
+            for (const auto &t : s.tiles())
+            {
+                auto c = t.getCoords();
+                if (c.q == destination.q && c.r == destination.r)
+                {
+                    tileMatch = true;
+                    break;
+                }
+            }
+            if (!tileMatch)
+                continue;
+
+            CombatResult result = Combat::resolve(
+                attacker.units(), s.garrison(),
+                attackerPlayer->heroes(), p.heroes(),
+                defTerrain, s.builtBuildings(),
+                attackerRace, p.race().getModifiers().military);
+
+            if (result.attackerWon)
+            {
+                attacker.applyCasualties(result.attackerSurvivors);
+                s.setOwnerId(attacker.getOwnerId());
+                Settlement captured = s;
+                p.settlements().erase(it);
+                attackerPlayer->addSettlement(captured);
+                result.settlementCaptured = true;
+            }
+            else if (result.isDraw)
+            {
+                attacker.applyCasualties(result.attackerSurvivors);
+                s.addToGarrison(result.defenderSurvivors);
+            }
+            else
+            {
+                s.addToGarrison(result.defenderSurvivors);
+                attackerPlayer->removeArmy(attacker.getId());
+            }
+            return result;
+        }
+    }
+
+    CombatResult err;
+    return err;
+}
+
+MoveResult GameState::moveArmy(const std::string &armyId, const Coords &destination)
+{
+    MoveResult result;
+
+    Army *army = findArmy(armyId);
+    if (!army)
+    {
+        result.errorMessage = "Армия не найдена";
+        return result;
+    }
+
+    const Tile *destTile = m_map.tileAt(destination.q, destination.r);
+    if (!destTile)
+    {
+        result.errorMessage = "Клетка за пределами карты";
+        return result;
+    }
+
+    Player *owner = findPlayer(m_players, army->getOwnerId());
+    if (!owner)
+    {
+        result.errorMessage = "Владелец армии не найден";
+        return result;
+    }
+
+    for (auto &a : owner->armies())
+    {
+        if (&a == army)
+            continue;
+        auto pos = a.position();
+        if (pos.q == destination.q && pos.r == destination.r)
+        {
+            result.errorMessage = "На этой клетке уже стоит ваша армия";
+            return result;
+        }
+    }
+
+    for (auto &p : m_players)
+    {
+        if (p.id() == army->getOwnerId())
+            continue;
+        if (!isAllied(m_alliances, army->getOwnerId(), p.id()))
+            continue;
+
+        for (auto &a : p.armies())
+        {
+            auto pos = a.position();
+            if (pos.q == destination.q && pos.r == destination.r)
+            {
+                result.errorMessage = "На этой клетке армия союзника";
+                return result;
+            }
+        }
+
+        for (auto &s : p.settlements())
+        {
+            for (const auto &t : s.tiles())
+            {
+                auto c = t.getCoords();
+                if (c.q == destination.q && c.r == destination.r)
+                {
+                    result.errorMessage = "На этой клетке поселение союзника";
+                    return result;
+                }
+            }
+        }
+    }
+
+    int cost = m_map.movementCostTo(army->position(), destination, army->movementPointsRemaining());
+    if (cost < 0)
+    {
+        result.errorMessage = "Недостаточно очков движения";
+        return result;
+    }
+
+    for (auto &p : m_players)
+    {
+        if (p.id() == army->getOwnerId())
+            continue;
+        if (isAllied(m_alliances, army->getOwnerId(), p.id()))
+            continue;
+
+        for (auto &a : p.armies())
+        {
+            auto pos = a.position();
+            if (pos.q == destination.q && pos.r == destination.r)
+            {
+                result.combatOccurred = true;
+                result.combat = resolveMovementCombat(*army, destination);
+                result.success = true;
+                if (result.combat.attackerWon)
+                    army->moveTo(destination, cost);
+                return result;
+            }
+        }
+
+        for (auto &s : p.settlements())
+        {
+            for (const auto &t : s.tiles())
+            {
+                auto c = t.getCoords();
+                if (c.q == destination.q && c.r == destination.r)
+                {
+                    result.combatOccurred = true;
+                    result.combat = resolveMovementCombat(*army, destination);
+                    result.settlementCaptured = result.combat.settlementCaptured;
+                    result.success = true;
+                    if (result.combat.attackerWon)
+                        army->moveTo(destination, cost);
+                    return result;
+                }
+            }
+        }
+    }
+
+    army->moveTo(destination, cost);
+    result.success = true;
+    return result;
+}

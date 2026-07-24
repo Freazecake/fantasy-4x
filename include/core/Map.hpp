@@ -16,4 +16,5 @@ public:
 
     const Tile *tileAt(int q, int r) const;
     std::vector<Coords> reachableTiles(Coords from, int movementBudget) const;
+    int movementCostTo(Coords from, Coords to, int budget) const;
 };

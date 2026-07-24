@@ -18,6 +18,8 @@ private:
     std::string m_requiredBuildingId;
     int m_recruitCost = 0;
     int m_populationCost = 0;
+    float m_currentHealth = 0.0f;
+    bool m_trained = false;
 
 public:
     Unit() = default;
@@ -35,6 +37,13 @@ public:
     int getRecruitCost() const { return m_recruitCost; }
     int getPopulationCost() const { return m_populationCost; }
     int getMovementPoints() const { return m_stats.movementPoints; }
+
+    float getCurrentHealth() const { return m_currentHealth; }
+    bool isAlive() const { return m_currentHealth > 0.0f; }
+    void setCurrentHealth(float hp) { m_currentHealth = hp; }
+
+    bool isTrained() const { return m_trained; }
+    void setTrained(bool trained) { m_trained = trained; }
 
     bool requiresBuilding() const { return !m_requiredBuildingId.empty(); }
 
