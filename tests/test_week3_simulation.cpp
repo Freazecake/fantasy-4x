@@ -136,9 +136,10 @@ TEST_CASE("Неделя 3, день 7: симуляция 8 ходов двор�
     // цифр. Правильное сравнение — с эффективными статами ТОГО ЖЕ юнита,
     // но если бы штрафа не было (например, если бы казарма уже стояла):
     // штраф должен урезать именно относительно этого, а не голого JSON.
-    Building hypotheticalBarracks = findBuilding("barracks");
+    Unit trainedRefUnit = recruitedUntrained[0];
+    trainedRefUnit.setTrained(true);
     UnitStats trainedReference =
-        Military::effectiveStats(recruitedUntrained[0], {hypotheticalBarracks},
+        Military::effectiveStats(trainedRefUnit, {},
                                   dwarves.getModifiers().military, player.heroes());
 
     CHECK(untrainedStats.attack < trainedReference.attack);

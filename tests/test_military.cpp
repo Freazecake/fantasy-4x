@@ -89,9 +89,9 @@ TEST_CASE("Military::effectiveStats: без построек с removesUntrained
 
 TEST_CASE("Military::effectiveStats: с казармой (removesUntrainedPenalty) штрафа нет") {
     Unit militia = makeUnit("militia", 0, "", 10.0f, 10.0f, 10.0f);
-    Building barracks = makeBuilding("barracks", {"swordsman"}, true);
+    militia.setTrained(true);
 
-    UnitStats stats = Military::effectiveStats(militia, {barracks}, 1.0f, {});
+    UnitStats stats = Military::effectiveStats(militia, {}, 1.0f, {});
 
     CHECK_NEAR(stats.attack, 10.0f, 0.01f);
     CHECK_NEAR(stats.defense, 10.0f, 0.01f);
@@ -100,16 +100,16 @@ TEST_CASE("Military::effectiveStats: с казармой (removesUntrainedPenalt
 
 TEST_CASE("Military::effectiveStats: расовый модификатор military усиливает статы независимо от штрафа") {
     Unit militia = makeUnit("militia", 0, "", 10.0f, 10.0f, 10.0f);
-    Building barracks = makeBuilding("barracks", {}, true);  // без штрафа, чтобы изолировать эффект расы
+    militia.setTrained(true);
 
-    UnitStats stats = Military::effectiveStats(militia, {barracks}, 1.5f, {});
+    UnitStats stats = Military::effectiveStats(militia, {}, 1.5f, {});
 
     CHECK_NEAR(stats.attack, 15.0f, 0.01f);
 }
 
 TEST_CASE("Military::effectiveStats: бонус героя тоже применяется к статам") {
     Unit militia = makeUnit("militia", 0, "", 10.0f, 10.0f, 10.0f);
-    Building barracks = makeBuilding("barracks", {}, true);
+    militia.setTrained(true);
 
     json heroObj = {
         {"id", "hero_kagran"},
@@ -121,7 +121,7 @@ TEST_CASE("Military::effectiveStats: бонус героя тоже примен
     };
     Hero kagran = Hero::loadFromJson(heroObj);
 
-    UnitStats stats = Military::effectiveStats(militia, {barracks}, 1.0f, {kagran});
+    UnitStats stats = Military::effectiveStats(militia, {}, 1.0f, {kagran});
 
     CHECK_NEAR(stats.attack, 13.0f, 0.01f);
 }
