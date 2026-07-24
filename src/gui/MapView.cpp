@@ -72,12 +72,16 @@ std::pair<int,int> MapView::pixelToAxial(const QPointF& scenePos) const {
 }
 
 void MapView::renderMap(const Map& map,
-                        const std::vector<std::pair<int,int>>& settlementTiles) {
+                        const std::vector<std::pair<int,int>>& settlementTiles,
+                        const std::vector<Army>& armies) {
+    clearOverlayItems();
     m_scene->clear();
     m_hexItems.clear();
     m_tileTypes.clear();
     m_settlementTiles = std::set<std::pair<int,int>>(settlementTiles.begin(), settlementTiles.end());
     m_hoveredCoords = {-9999, -9999};
+
+    m_armies = armies;
 
     const auto& tiles = map.getMap();
     if (tiles.empty()) return;
@@ -100,6 +104,8 @@ void MapView::renderMap(const Map& map,
     }
     setSceneRect(0, 0, maxX + kHexSize, maxY + kHexSize);
     fitInView(sceneRect(), Qt::KeepAspectRatio);
+
+    renderArmyTokens();
 }
 
 void MapView::mouseMoveEvent(QMouseEvent* event) {
@@ -137,9 +143,107 @@ void MapView::resizeEvent(QResizeEvent* event) {
     }
 }
 
+void MapView::clearOverlayItems() {
+    m_reachableHighlights.clear();
+    m_armyTokenItems.clear();
+    m_armyTokenLabels.clear();
+}
+
+void MapView::setSelectedArmy(const std::string& armyId) {
+    m_selectedArmyId = armyId;
+}
+
+void MapView::clearSelection() {
+    clearReachableTiles();
+    m_selectedArmyId.clear();
+}
+
+void MapView::setReachableTiles(const std::set<std::pair<int,int>>& tiles) {
+    for (auto* item : m_reachableHighlights)
+        m_scene->removeItem(item);
+    m_reachableHighlights.clear();
+    m_reachableTiles = tiles;
+
+    for (const auto& [q, r] : tiles) {
+        QPointF center = axialToPixel(q, r);
+        auto* overlay = m_scene->addEllipse(
+            center.x() - kHexSize * 0.5, center.y() - kHexSize * 0.5,
+            kHexSize, kHexSize,
+            QPen(QColor(255, 255, 100, 200), 2),
+            QBrush(QColor(255, 255, 100, 30)));
+        m_reachableHighlights.push_back(overlay);
+    }
+}
+
+void MapView::clearReachableTiles() {
+    for (auto* item : m_reachableHighlights)
+        m_scene->removeItem(item);
+    m_reachableHighlights.clear();
+    m_reachableTiles.clear();
+}
+
+void MapView::renderArmyTokens() {
+    for (auto* item : m_armyTokenItems)
+        m_scene->removeItem(item);
+    m_armyTokenItems.clear();
+    for (auto* label : m_armyTokenLabels)
+        m_scene->removeItem(label);
+    m_armyTokenLabels.clear();
+
+    for (const auto& army : m_armies) {
+        auto pos = army.position();
+        QPointF center = axialToPixel(pos.q, pos.r);
+        QColor fill = (army.getOwnerId() == 0) ? QColor(60, 120, 210) : QColor(200, 60, 60);
+        QPen border = (army.getId() == m_selectedArmyId)
+            ? QPen(QColor(255, 255, 0), 3)
+            : QPen(QColor(20, 20, 20), 2);
+
+        auto* ellipse = m_scene->addEllipse(
+            center.x() - 8, center.y() - 8, 16, 16,
+            border, QBrush(fill));
+        m_armyTokenItems.push_back(ellipse);
+
+        auto* text = m_scene->addSimpleText(
+            QString::number(static_cast<int>(army.units().size())),
+            QFont("sans-serif", 8, QFont::Bold));
+        text->setPos(center.x() - 4, center.y() - 6);
+        text->setBrush(Qt::white);
+        m_armyTokenLabels.push_back(text);
+    }
+}
+
 void MapView::mousePressEvent(QMouseEvent* event) {
     QPointF scenePos = mapToScene(event->pos());
     auto [q, r] = pixelToAxial(scenePos);
+
+    if (event->button() == Qt::RightButton) {
+        clearSelection();
+        emit selectionCleared();
+        return;
+    }
+
+    for (const auto& army : m_armies) {
+        if (army.position().q == q && army.position().r == r) {
+            m_selectedArmyId = army.getId();
+            emit armySelected(army.getId());
+            renderArmyTokens();
+            return;
+        }
+    }
+
+    if (!m_selectedArmyId.empty() && m_reachableTiles.count({q, r})) {
+        std::string aid = m_selectedArmyId;
+        m_selectedArmyId.clear();
+        m_reachableTiles.clear();
+        emit armyMoveRequested(aid, q, r);
+        return;
+    }
+
+    if (!m_selectedArmyId.empty()) {
+        clearSelection();
+        emit selectionCleared();
+    }
+
     emit tileClicked(q, r);
     QGraphicsView::mousePressEvent(event);
 }

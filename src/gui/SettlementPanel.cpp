@@ -113,6 +113,10 @@ void SettlementPanel::setupUi() {
     recruitLayout->addWidget(new QLabel(QStringLiteral("Гарнизон:"), recruitGroup));
     recruitLayout->addWidget(m_garrisonList);
 
+    m_marchBtn = new QPushButton(QStringLiteral("Выступить в поход"), recruitGroup);
+    connect(m_marchBtn, &QPushButton::clicked, this, &SettlementPanel::onMarch);
+    recruitLayout->addWidget(m_marchBtn);
+
     m_tabs->addTab(recruitGroup, QStringLiteral("Войска"));
 
     // --- вкладка "Торговля" ---
@@ -427,6 +431,15 @@ void SettlementPanel::onExchangeTrade() {
 
     QString targetResource = m_tradeTargetCombo->currentData().toString();
     emit tradeExchangeRequested(targetResource.toStdString(), amount);
+}
+
+void SettlementPanel::onMarch() {
+    if (!m_settlement) return;
+    if (m_settlement->garrison().empty()) {
+        emit actionFailed(QStringLiteral("Гарнизон пуст"));
+        return;
+    }
+    emit marchRequested();
 }
 
 void SettlementPanel::onExecutePoliticalAction() {

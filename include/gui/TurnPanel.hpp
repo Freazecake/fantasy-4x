@@ -3,6 +3,9 @@
 #include <QWidget>
 #include <QLabel>
 #include <QPushButton>
+#include <QListWidget>
+
+#include "core/Army.hpp"
 
 class TurnPanel : public QWidget {
     Q_OBJECT
@@ -11,9 +14,11 @@ public:
 
     void updateInfo(int turnNumber, const std::string& phase,
                     float science, float industry, float trade, float diplomacy);
+    void updateArmyList(const std::vector<Army>& armies);
 
 signals:
     void endTurnClicked();
+    void armySelected(const std::string& armyId);
 
 private:
     void setupUi();
@@ -24,5 +29,6 @@ private:
     QLabel* m_industryLabel;
     QLabel* m_tradeLabel;
     QLabel* m_diplomacyLabel;
+    QListWidget* m_armyList;
     QPushButton* m_endTurnBtn;
 };
