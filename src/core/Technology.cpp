@@ -75,6 +75,16 @@ bool Technology::canResearch(const std::unordered_set<std::string> &ResearchedTe
     return true;
 }
 
+bool Technology::canResearch(const std::unordered_set<std::string> &ResearchedTechIds) const
+{
+    for (const auto &prereq : m_prerequisiteIds)
+    {
+        if (ResearchedTechIds.count(prereq) == 0)
+            return false;
+    }
+    return true;
+}
+
 int Technology::invest(int points)
 {
     if (m_isResearched)
