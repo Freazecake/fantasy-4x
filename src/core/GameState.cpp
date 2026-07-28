@@ -27,6 +27,19 @@ void GameState::nextTurn()
     ++m_turnNumber;
 }
 
+bool GameState::isAllied(const GameState &state, int a, int b)
+{
+    if (a == b)
+        return true;
+    for (const auto &alliance : state.m_alliances)
+    {
+        if ((alliance.playerA == a && alliance.playerB == b) ||
+            (alliance.playerA == b && alliance.playerB == a))
+            return true;
+    }
+    return false;
+}
+
 void GameState::checkAlliances()
 {
     std::vector<ActiveAlliance> active;
@@ -179,18 +192,6 @@ static Settlement *findSettlementAt(std::vector<Player> &players, int q, int r)
     return nullptr;
 }
 
-static bool isAllied(const std::vector<ActiveAlliance> &alliances, int a, int b)
-{
-    if (a == b)
-        return true;
-    for (const auto &al : alliances)
-    {
-        if ((al.playerA == a && al.playerB == b) || (al.playerA == b && al.playerB == a))
-            return true;
-    }
-    return false;
-}
-
 static float terrainBonus(TileType type)
 {
     switch (type)
@@ -222,7 +223,7 @@ CombatResult GameState::resolveMovementCombat(Army &attacker, const Coords &dest
     {
         if (p.id() == attacker.getOwnerId())
             continue;
-        if (isAllied(m_alliances, attacker.getOwnerId(), p.id()))
+        if (isAllied(*this, attacker.getOwnerId(), p.id()))
             continue;
 
         for (auto &a : p.armies())
@@ -264,7 +265,7 @@ CombatResult GameState::resolveMovementCombat(Army &attacker, const Coords &dest
     {
         if (p.id() == attacker.getOwnerId())
             continue;
-        if (isAllied(m_alliances, attacker.getOwnerId(), p.id()))
+        if (isAllied(*this, attacker.getOwnerId(), p.id()))
             continue;
 
         for (auto it = p.settlements().begin(); it != p.settlements().end(); ++it)
@@ -357,7 +358,7 @@ MoveResult GameState::moveArmy(const std::string &armyId, const Coords &destinat
     {
         if (p.id() == army->getOwnerId())
             continue;
-        if (!isAllied(m_alliances, army->getOwnerId(), p.id()))
+        if (!isAllied(*this, army->getOwnerId(), p.id()))
             continue;
 
         for (auto &a : p.armies())
@@ -395,7 +396,7 @@ MoveResult GameState::moveArmy(const std::string &armyId, const Coords &destinat
     {
         if (p.id() == army->getOwnerId())
             continue;
-        if (isAllied(m_alliances, army->getOwnerId(), p.id()))
+        if (isAllied(*this, army->getOwnerId(), p.id()))
             continue;
 
         for (auto &a : p.armies())

@@ -21,10 +21,9 @@ endif()
 # поправь этот путь.
 set(GAME_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
-# Намеренно НЕ используется file(GLOB ...) по всему src/core/, как в корневом
-# CMakeLists.txt: GameEngine и GameState пока пустые заглушки (относятся к
-# неделям 4-5), а main.cpp вообще требует <Windows.h>. Тесты собирают только
-# то, что реально протестировано в этой папке.
+# Намеренно НЕ используется file(GLOB ...) по всему src/, чтобы явно
+# видеть, что реально протестировано в этой папке (main.cpp вообще требует
+# <Windows.h> и не годится для консольных тестов).
 add_executable(game_tests
     main.cpp
     test_race.cpp
@@ -45,6 +44,8 @@ add_executable(game_tests
     test_week3_simulation.cpp
     test_coords_army.cpp
     test_combat.cpp
+    test_ai.cpp
+    test_game_engine.cpp
 
     ${GAME_ROOT}/src/core/Race.cpp
     ${GAME_ROOT}/src/core/Tile.cpp
@@ -62,6 +63,9 @@ add_executable(game_tests
     ${GAME_ROOT}/src/core/GameState.cpp
     ${GAME_ROOT}/src/core/Army.cpp
     ${GAME_ROOT}/src/core/Combat.cpp
+    ${GAME_ROOT}/src/core/GameEngine.cpp
+    ${GAME_ROOT}/src/ai/AIController.cpp
+    ${GAME_ROOT}/src/ai/AIStrategy.cpp
 )
 
 target_include_directories(game_tests PRIVATE

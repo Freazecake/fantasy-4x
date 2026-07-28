@@ -64,6 +64,7 @@ public:
     void nextPhase() { m_globalPhase = static_cast<GlobalPhase>(static_cast<int>(m_globalPhase) + 1); }
     void nextTurn();
 
+    static bool isAllied(const GameState &state, int a, int b);
     void checkAlliances();
     void applyDemandTribute(int sourceId, int targetId);
     void applyVassalize(int masterId, int vassalId);

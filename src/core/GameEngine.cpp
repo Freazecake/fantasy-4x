@@ -45,6 +45,7 @@ bool GameEngine::loadFromAssets(const std::string &assetsDir)
 
     Player human;
     human.setId(0);
+    human.setIsHuman(true);
     human.setRace(humanRace);
     human.loadTechnologies(m_techCatalog);
 
@@ -96,14 +97,18 @@ std::string GameEngine::applyPoliticalAction(int playerId, const std::string &ac
     Player *player = nullptr, *target = nullptr;
     for (auto &p : m_state.players())
     {
-        if (p.id() == playerId) player = &p;
-        if (p.id() == targetId) target = &p;
+        if (p.id() == playerId)
+            player = &p;
+        if (p.id() == targetId)
+            target = &p;
     }
-    if (!player) return "Игрок не найден";
+    if (!player)
+        return "Игрок не найден";
 
     for (const auto &a : m_politicalActionCatalog)
     {
-        if (a.getId() != actionId) continue;
+        if (a.getId() != actionId)
+            continue;
 
         if (!player->trySpendOnPoliticalAction(a))
             return "Недостаточно дипломатии";
@@ -111,22 +116,26 @@ std::string GameEngine::applyPoliticalAction(int playerId, const std::string &ac
         switch (a.getType())
         {
         case PoliticalActionType::Alliance:
-            if (!target) return "Цель не найдена";
+            if (!target)
+                return "Цель не найдена";
             m_state.newAlliance(*player, *target, m_state.turnNumber() + 5);
             return "Союз заключён";
 
         case PoliticalActionType::DemandTribute:
-            if (!target) return "Цель не найдена";
+            if (!target)
+                return "Цель не найдена";
             m_state.applyDemandTribute(playerId, targetId);
             return "Дань потребована";
 
         case PoliticalActionType::Vassalize:
-            if (!target) return "Цель не найдена";
+            if (!target)
+                return "Цель не найдена";
             m_state.applyVassalize(playerId, targetId);
             return "Вассализация проведена";
 
         case PoliticalActionType::PoliticalConquest:
-            if (!target) return "Цель не найдена";
+            if (!target)
+                return "Цель не найдена";
             m_state.applyPoliticalConquest(playerId, targetId);
             if (m_state.checkVictory().hasWinner())
                 return "ПОЛИТИЧЕСКАЯ ПОБЕДА!";
@@ -139,7 +148,15 @@ std::string GameEngine::applyPoliticalAction(int playerId, const std::string &ac
 void GameEngine::endTurn()
 {
     for (auto &player : m_state.players())
+    {
+        if (!player.isHuman())
+        {
+            AIController::takeTurn(player, m_state, m_buildingCatalog,
+                                   m_techCatalog, m_unitCatalog,
+                                   m_politicalActionCatalog);
+        }
         player.advanceTurn();
+    }
 
     m_state.processVassalage();
 

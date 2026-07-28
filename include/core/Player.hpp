@@ -34,6 +34,7 @@ private:
     Race m_race;
     int m_id = -1;
     bool m_allianceBonus = false;
+    bool m_isHuman = false;
     std::vector<Technology> m_technologies;
     std::string m_currentResearchId;
     std::unordered_set<std::string> m_researchedTechIds;
@@ -53,6 +54,9 @@ public:
 
     void setAllianceBonus(bool ab) { m_allianceBonus = ab; }
     bool allianceBonus() const { return m_allianceBonus; }
+
+    void setIsHuman(bool b) { m_isHuman = b; }
+    bool isHuman() const { return m_isHuman; }
 
     void setRace(const Race &race) { m_race = race; }
     const Race &race() const { return m_race; }

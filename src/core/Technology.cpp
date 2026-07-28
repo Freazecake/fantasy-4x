@@ -65,7 +65,7 @@ std::vector<Technology> Technology::loadAllFromJson(const json &TechNode)
     return result;
 }
 
-bool Technology::canResearch(const std::unordered_set<std::string> &ResearchedTechIds)
+bool Technology::canResearch(const std::unordered_set<std::string> &ResearchedTechIds) const
 {
     for (const auto &prereq : m_prerequisiteIds)
     {
