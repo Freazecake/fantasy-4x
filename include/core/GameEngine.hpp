@@ -8,6 +8,7 @@
 #include "Technology.hpp"
 #include "Unit.hpp"
 #include "PoliticalAction.hpp"
+#include "ai/AIController.hpp"
 
 class GameEngine
 {

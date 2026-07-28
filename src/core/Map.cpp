@@ -30,6 +30,16 @@ const Tile *Map::tileAt(int q, int r) const
     return nullptr;
 }
 
+Tile *Map::tileAt(int q, int r)
+{
+    for (auto &tile : m_map)
+    {
+        if (tile.getCoords().q == q && tile.getCoords().r == r)
+            return &tile;
+    }
+    return nullptr;
+}
+
 std::vector<Coords> Map::reachableTiles(Coords from, int movementBudget) const
 {
     struct Node

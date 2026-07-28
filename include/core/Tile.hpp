@@ -38,6 +38,7 @@ public:
     Tile(const Tile &);
     Coords getCoords() const { return coords; }
     TileType getType() const { return type; }
+    void setType(TileType t) { type = t; }
     bool is_nearby(const Tile &other) const { return this->coords.is_nearby(other.coords); }
     int movementCost() const;
 };

@@ -38,7 +38,6 @@ public:
     const std::vector<std::string> &getUnloksBuildingsIds() const { return m_unlocksBuildingIds; }
     bool isResearched() const { return m_isResearched; }
 
-    bool canResearch(const std::unordered_set<std::string> &ResearchedTechIds);
     bool canResearch(const std::unordered_set<std::string> &ResearchedTechIds) const;
     int invest(int points);
     int remainingCost() const { return std::max(0, m_scienceCost - m_scienceInvested); }
