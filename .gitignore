@@ -3,6 +3,5 @@ build/
 .cache/
 *.zip
 *.md
-shortcomings.txt
 
 !README.md

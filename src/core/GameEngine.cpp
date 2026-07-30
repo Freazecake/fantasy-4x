@@ -1,6 +1,8 @@
 #include "core/GameEngine.hpp"
 #include "core/Hero.hpp"
 #include "core/Race.hpp"
+#include "core/MapGenerator.hpp"
+#include "core/StartLayout.hpp"
 #include "external/json.hpp"
 
 #include <fstream>
@@ -62,15 +64,23 @@ bool GameEngine::loadFromAssets(const std::string &assetsDir)
     capital.assignFromIdle(Sphere::Trade, 10);
     capital.assignFromIdle(Sphere::Diplomacy, 5);
 
-    Map gameMap = Map::generateMap(16, 12);
+    int cx = StartLayout::pentagonCapitals()[0].q;
+    int cy = StartLayout::pentagonCapitals()[0].r;
 
-    int cx = 7, cy = 5;
+    MapGenerationParams mapParams;
+    mapParams.width = StartLayout::MAP_WIDTH;
+    mapParams.height = StartLayout::MAP_HEIGHT;
+    mapParams.guaranteedLandCenters = StartLayout::pentagonCapitals();
+    mapParams.guaranteedLandRadius = StartLayout::CAPITAL_LAND_RADIUS;
+
+    Map gameMap = MapGenerator::generate(mapParams);
+
     for (int dx = -1; dx <= 1; ++dx)
     {
         for (int dy = -1; dy <= 1; ++dy)
         {
             int q = cx + dx, r = cy + dy;
-            if (q >= 0 && q < 16 && r >= 0 && r < 12)
+            if (q >= 0 && q < StartLayout::MAP_WIDTH && r >= 0 && r < StartLayout::MAP_HEIGHT)
                 capital.addTile(Tile(q, r));
         }
     }
