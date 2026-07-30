@@ -1,6 +1,26 @@
 #include "test_framework.hpp"
 
 #include "core/GameEngine.hpp"
+#include "core/StartLayout.hpp"
+
+TEST_CASE("GameEngine::loadFromAssets: карта 20x18, столица человека — точка 0 пятиугольника")
+{
+    GameEngine engine;
+    CHECK(engine.loadFromAssets(ASSETS_DIR));
+
+    const auto &tiles = engine.state().map().getMap();
+    CHECK(tiles.size() == static_cast<size_t>(StartLayout::MAP_WIDTH * StartLayout::MAP_HEIGHT));
+
+    Coords expectedCenter = StartLayout::pentagonCapitals()[0];
+    const auto &capitalTiles = engine.state().players()[0].settlements()[0].tiles();
+    CHECK(capitalTiles.size() == 9u); // блок 3x3
+
+    bool centerPresent = false;
+    for (const auto &t : capitalTiles)
+        if (t.getCoords().q == expectedCenter.q && t.getCoords().r == expectedCenter.r)
+            centerPresent = true;
+    CHECK(centerPresent);
+}
 
 TEST_CASE("GameEngine::loadFromAssets: человек помечен как isHuman")
 {

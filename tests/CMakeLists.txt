@@ -46,10 +46,12 @@ add_executable(game_tests
     test_combat.cpp
     test_ai.cpp
     test_game_engine.cpp
+    test_map_generator.cpp
 
     ${GAME_ROOT}/src/core/Race.cpp
     ${GAME_ROOT}/src/core/Tile.cpp
     ${GAME_ROOT}/src/core/Map.cpp
+    ${GAME_ROOT}/src/core/MapGenerator.cpp
     ${GAME_ROOT}/src/core/Settlement.cpp
     ${GAME_ROOT}/src/core/Building.cpp
     ${GAME_ROOT}/src/core/Technology.cpp
