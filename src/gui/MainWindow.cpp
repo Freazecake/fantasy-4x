@@ -14,15 +14,15 @@
 #include <QApplication>
 #include <QMessageBox>
 
-MainWindow::MainWindow(QWidget* parent)
+MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     resize(1024, 700);
     setWindowTitle(QStringLiteral("4X Стратегия"));
 
-    auto* menuBar = this->menuBar();
-    auto* gameMenu = menuBar->addMenu(QStringLiteral("Игра"));
-    auto* endTurnAction = gameMenu->addAction(QStringLiteral("Завершить ход"));
+    auto *menuBar = this->menuBar();
+    auto *gameMenu = menuBar->addMenu(QStringLiteral("Игра"));
+    auto *endTurnAction = gameMenu->addAction(QStringLiteral("Завершить ход"));
     connect(endTurnAction, &QAction::triggered, this, &MainWindow::onEndTurn);
 
     m_startMenu = new StartMenuWidget(this);
@@ -38,20 +38,21 @@ MainWindow::MainWindow(QWidget* parent)
     statusBar()->showMessage(QStringLiteral("4X Стратегия v0.1.0"));
 }
 
-QWidget* MainWindow::buildGameView() {
+QWidget *MainWindow::buildGameView()
+{
     m_mapView = new MapView(this);
     m_settlementPanel = new SettlementPanel(this);
     m_techTreePanel = new TechTreePanel(this);
     m_turnPanel = new TurnPanel(this);
 
-    auto* centralSplitter = new QSplitter(Qt::Horizontal);
+    auto *centralSplitter = new QSplitter(Qt::Horizontal);
     centralSplitter->addWidget(m_mapView);
 
-    auto* rightPanel = new QWidget(centralSplitter);
-    auto* rightLayout = new QVBoxLayout(rightPanel);
+    auto *rightPanel = new QWidget(centralSplitter);
+    auto *rightLayout = new QVBoxLayout(rightPanel);
     rightLayout->setContentsMargins(4, 4, 4, 4);
 
-    auto* topRightSplitter = new QSplitter(Qt::Vertical, rightPanel);
+    auto *topRightSplitter = new QSplitter(Qt::Vertical, rightPanel);
     topRightSplitter->addWidget(m_settlementPanel);
     topRightSplitter->addWidget(m_techTreePanel);
     rightLayout->addWidget(topRightSplitter);
@@ -70,63 +71,68 @@ QWidget* MainWindow::buildGameView() {
     connect(m_mapView, &MapView::selectionCleared, this, &MainWindow::onSelectionCleared);
 
     connect(m_techTreePanel, &TechTreePanel::researchRequested, this,
-        [this](const std::string& techId) {
-            m_engine.state().players()[0].setCurrentResearch(techId);
-            refreshAllPanels();
-            statusBar()->showMessage(
-                QStringLiteral("Начато исследование: %1").arg(QString::fromStdString(techId)));
-        });
+            [this](const std::string &techId)
+            {
+                m_engine.state().players()[0].setCurrentResearch(techId);
+                refreshAllPanels();
+                statusBar()->showMessage(
+                    QStringLiteral("Начато исследование: %1").arg(QString::fromStdString(techId)));
+            });
 
-    connect(m_settlementPanel, &SettlementPanel::allocationChanged, this, [this]() {
-        refreshAllPanels();
-    });
-    connect(m_settlementPanel, &SettlementPanel::buildingQueued, this, [this](const std::string&) {
+    connect(m_settlementPanel, &SettlementPanel::allocationChanged, this, [this]()
+            { refreshAllPanels(); });
+    connect(m_settlementPanel, &SettlementPanel::buildingQueued, this, [this](const std::string &)
+            {
         Player& human = m_engine.state().players()[0];
         Settlement* settlement = m_settlementPanel->currentSettlement();
         if (settlement)
             human.spendIndustryOnQueues(*settlement);
-        refreshAllPanels();
-    });
-    connect(m_settlementPanel, &SettlementPanel::unitRecruitmentQueued, this, [this](const std::string&) {
+        refreshAllPanels(); });
+    connect(m_settlementPanel, &SettlementPanel::unitRecruitmentQueued, this, [this](const std::string &)
+            {
         Player& human = m_engine.state().players()[0];
         Settlement* settlement = m_settlementPanel->currentSettlement();
         if (settlement)
             human.spendIndustryOnQueues(*settlement);
-        refreshAllPanels();
-    });
-    connect(m_settlementPanel, &SettlementPanel::actionFailed, this, [this](const QString& msg) {
-        statusBar()->showMessage(msg, 5000);
-    });
+        refreshAllPanels(); });
+    connect(m_settlementPanel, &SettlementPanel::actionFailed, this, [this](const QString &msg)
+            { statusBar()->showMessage(msg, 5000); });
     connect(m_settlementPanel, &SettlementPanel::marchRequested, this, &MainWindow::onMarchRequested);
 
     connect(m_settlementPanel, &SettlementPanel::tradeExchangeRequested, this,
-        [this](const std::string& targetResource, int amount) {
-            Player& human = m_engine.state().players()[0];
-            if (human.exchangeTrade(targetResource, amount)) {
-                statusBar()->showMessage(
-                    QStringLiteral("Обмен совершён: %1 ед. торговли → %2").arg(amount).arg(QString::fromStdString(targetResource)), 3000);
-            } else {
-                statusBar()->showMessage(QStringLiteral("Недостаточно торговли"), 3000);
-            }
-            refreshAllPanels();
-        });
+            [this](const std::string &targetResource, int amount)
+            {
+                Player &human = m_engine.state().players()[0];
+                if (human.exchangeTrade(targetResource, amount))
+                {
+                    statusBar()->showMessage(
+                        QStringLiteral("Обмен совершён: %1 ед. торговли → %2").arg(amount).arg(QString::fromStdString(targetResource)), 3000);
+                }
+                else
+                {
+                    statusBar()->showMessage(QStringLiteral("Недостаточно торговли"), 3000);
+                }
+                refreshAllPanels();
+            });
 
     connect(m_settlementPanel, &SettlementPanel::politicalActionRequested, this,
-        [this](const std::string& actionId, int targetId) {
-            std::string msg = m_engine.applyPoliticalAction(0, actionId, targetId);
-            statusBar()->showMessage(QString::fromStdString(msg), 5000);
+            [this](const std::string &actionId, int targetId)
+            {
+                std::string msg = m_engine.applyPoliticalAction(0, actionId, targetId);
+                statusBar()->showMessage(QString::fromStdString(msg), 5000);
 
-            auto v = m_engine.checkVictoryCondition();
-            if (v.hasWinner())
-                showVictoryDialog(v);
+                auto v = m_engine.checkVictoryCondition();
+                if (v.hasWinner())
+                    showVictoryDialog(v);
 
-            refreshAllPanels();
-        });
+                refreshAllPanels();
+            });
 
     return centralSplitter;
 }
 
-void MainWindow::onNewGame() {
+void MainWindow::onNewGame()
+{
     m_engine.loadFromAssets(ASSETS_DIR);
     refreshAllPanels();
     m_stack->setCurrentIndex(1);
@@ -135,23 +141,32 @@ void MainWindow::onNewGame() {
 
 MainWindow::~MainWindow() {}
 
-void MainWindow::refreshAllPanels() {
-    Player& human = m_engine.state().players()[0];
+void MainWindow::refreshAllPanels()
+{
+    Player &human = m_engine.state().players()[0];
 
-    std::vector<std::pair<int,int>> settlementTiles;
-    for (const auto& s : human.settlements()) {
-        for (const auto& t : s.tiles()) {
-            auto c = t.getCoords();
-            settlementTiles.emplace_back(c.q, c.r);
+    std::vector<SettlementMarker> settlementTiles;
+    std::vector<Army> allPlayersArmies;
+    for (const auto &p : m_engine.state().players())
+    {
+        for (const auto &s : p.settlements())
+        {
+            for (const auto &t : s.tiles())
+            {
+                auto c = t.getCoords();
+                settlementTiles.push_back({c.q, c.r, p.id()});
+            }
         }
+        for (const auto &a : p.armies())
+            allPlayersArmies.push_back(a);
     }
 
-    auto allArmies = human.armies();
     m_mapView->clearReachableTiles();
-    m_mapView->renderMap(m_engine.state().map(), settlementTiles, allArmies);
-    m_turnPanel->updateArmyList(allArmies);
+    m_mapView->renderMap(m_engine.state().map(), settlementTiles, allPlayersArmies, human.id());
+    m_turnPanel->updateArmyList(human.armies());
 
-    if (!human.settlements().empty()) {
+    if (!human.settlements().empty())
+    {
         m_settlementPanel->showSettlement(
             human.settlements()[0], m_engine.buildingCatalog(), m_engine.unitCatalog());
     }
@@ -161,12 +176,19 @@ void MainWindow::refreshAllPanels() {
         human.researchedTechIds(),
         human.currentResearchId());
 
-    const auto& res = human.resources();
+    const auto &res = human.resources();
     std::string phaseName;
-    switch (m_engine.state().CurPhase()) {
-        case GlobalPhase::NotStarted:    phaseName = "Начало"; break;
-        case GlobalPhase::Phase2_OpenMap: phaseName = "Открытая карта"; break;
-        case GlobalPhase::Phase3_Final:  phaseName = "Финал"; break;
+    switch (m_engine.state().CurPhase())
+    {
+    case GlobalPhase::NotStarted:
+        phaseName = "Начало";
+        break;
+    case GlobalPhase::Phase2_OpenMap:
+        phaseName = "Открытая карта";
+        break;
+    case GlobalPhase::Phase3_Final:
+        phaseName = "Финал";
+        break;
     }
 
     m_turnPanel->updateInfo(
@@ -179,22 +201,28 @@ void MainWindow::refreshAllPanels() {
         m_engine.politicalActionCatalog());
 
     std::vector<int> opponentIds;
-    for (const auto& p : m_engine.state().players())
-        if (p.id() != 0) opponentIds.push_back(p.id());
+    for (const auto &p : m_engine.state().players())
+        if (p.id() != 0)
+            opponentIds.push_back(p.id());
     m_settlementPanel->setOpponents(opponentIds);
 }
 
-void MainWindow::onTileClicked(int q, int r) {
-    if (m_stack->currentIndex() != 1) return;
+void MainWindow::onTileClicked(int q, int r)
+{
+    if (m_stack->currentIndex() != 1)
+        return;
 
     statusBar()->showMessage(
         QStringLiteral("Клетка: %1, %2").arg(q).arg(r));
 
-    Player& human = m_engine.state().players()[0];
-    for (auto& settlement : human.settlements()) {
-        for (const auto& tile : settlement.tiles()) {
+    Player &human = m_engine.state().players()[0];
+    for (auto &settlement : human.settlements())
+    {
+        for (const auto &tile : settlement.tiles())
+        {
             auto c = tile.getCoords();
-            if (c.q == q && c.r == r) {
+            if (c.q == q && c.r == r)
+            {
                 m_settlementPanel->showSettlement(settlement, m_engine.buildingCatalog(), m_engine.unitCatalog());
                 statusBar()->showMessage(QStringLiteral("Поселение"), 5000);
                 return;
@@ -203,21 +231,25 @@ void MainWindow::onTileClicked(int q, int r) {
     }
 }
 
-void MainWindow::onTileHovered(const QString& info) {
-    if (m_stack->currentIndex() != 1) return;
+void MainWindow::onTileHovered(const QString &info)
+{
+    if (m_stack->currentIndex() != 1)
+        return;
     statusBar()->showMessage(info);
 }
 
-void MainWindow::onArmySelected(const std::string& armyId) {
-    Army* army = m_engine.state().findArmy(armyId);
-    if (!army) return;
+void MainWindow::onArmySelected(const std::string &armyId)
+{
+    Army *army = m_engine.state().findArmy(armyId);
+    if (!army)
+        return;
 
     m_mapView->setSelectedArmy(armyId);
 
     auto reachable = m_engine.state().map().reachableTiles(
         army->position(), army->movementPointsRemaining());
-    std::set<std::pair<int,int>> tileSet;
-    for (const auto& c : reachable)
+    std::set<std::pair<int, int>> tileSet;
+    for (const auto &c : reachable)
         tileSet.insert({c.q, c.r});
     m_mapView->setReachableTiles(tileSet);
 
@@ -225,24 +257,28 @@ void MainWindow::onArmySelected(const std::string& armyId) {
         QStringLiteral("Армия выбрана: %1 юн., %2/%3 ОД")
             .arg(static_cast<int>(army->units().size()))
             .arg(army->movementPointsRemaining())
-            .arg(army->movementPointsMax()), 5000);
+            .arg(army->movementPointsMax()),
+        5000);
 }
 
-void MainWindow::onArmyMoveRequested(const std::string& armyId, int q, int r) {
+void MainWindow::onArmyMoveRequested(const std::string &armyId, int q, int r)
+{
     auto result = m_engine.state().moveArmy(armyId, {q, r});
-    if (!result.success) {
+    if (!result.success)
+    {
         statusBar()->showMessage(QString::fromStdString(result.errorMessage), 5000);
         refreshAllPanels();
         return;
     }
 
-    if (result.combatOccurred) {
+    if (result.combatOccurred)
+    {
         QString combatMsg;
         if (result.settlementCaptured)
             combatMsg = QStringLiteral("Поселение захвачено! ");
         combatMsg += result.combat.attackerWon
-            ? QStringLiteral("Атака победила")
-            : QStringLiteral("Защита победила");
+                         ? QStringLiteral("Атака победила")
+                         : QStringLiteral("Защита победила");
         statusBar()->showMessage(combatMsg, 8000);
     }
 
@@ -250,22 +286,26 @@ void MainWindow::onArmyMoveRequested(const std::string& armyId, int q, int r) {
     m_mapView->clearSelection();
 }
 
-void MainWindow::onSelectionCleared() {
+void MainWindow::onSelectionCleared()
+{
     m_mapView->clearSelection();
     statusBar()->clearMessage();
 }
 
-void MainWindow::onMarchRequested() {
-    Settlement* settlement = m_settlementPanel->currentSettlement();
-    if (!settlement) return;
+void MainWindow::onMarchRequested()
+{
+    Settlement *settlement = m_settlementPanel->currentSettlement();
+    if (!settlement)
+        return;
 
-    Player& human = m_engine.state().players()[0];
+    Player &human = m_engine.state().players()[0];
 
     std::vector<std::string> allUnitIds;
-    for (const auto& u : settlement->garrison())
+    for (const auto &u : settlement->garrison())
         allUnitIds.push_back(u.getId());
 
-    if (allUnitIds.empty()) {
+    if (allUnitIds.empty())
+    {
         statusBar()->showMessage(QStringLiteral("Нет войск в гарнизоне"), 5000);
         return;
     }
@@ -275,13 +315,16 @@ void MainWindow::onMarchRequested() {
     statusBar()->showMessage(QStringLiteral("Армия выступила в поход"), 5000);
 }
 
-void MainWindow::onEndTurn() {
-    if (m_stack->currentIndex() != 1) return;
+void MainWindow::onEndTurn()
+{
+    if (m_stack->currentIndex() != 1)
+        return;
 
     m_engine.endTurn();
 
     auto v = m_engine.checkVictoryCondition();
-    if (v.hasWinner()) {
+    if (v.hasWinner())
+    {
         showVictoryDialog(v);
         return;
     }
@@ -291,11 +334,12 @@ void MainWindow::onEndTurn() {
         QStringLiteral("Ход %1 завершён").arg(m_engine.state().turnNumber()), 3000);
 }
 
-void MainWindow::showVictoryDialog(const VictoryResult& v) {
+void MainWindow::showVictoryDialog(const VictoryResult &v)
+{
     QString typeStr = v.type == "political"
-        ? QStringLiteral("Политическая победа")
-        : QStringLiteral("Военная победа");
+                          ? QStringLiteral("Политическая победа")
+                          : QStringLiteral("Военная победа");
     QMessageBox::information(this, QStringLiteral("Победа!"),
-        QStringLiteral("Игрок %1 победил! (%2)").arg(v.winnerId).arg(typeStr));
+                             QStringLiteral("Игрок %1 победил! (%2)").arg(v.winnerId).arg(typeStr));
     m_stack->setCurrentIndex(0);
 }

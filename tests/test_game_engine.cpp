@@ -22,13 +22,85 @@ TEST_CASE("GameEngine::loadFromAssets: карта 20x18, столица чело
     CHECK(centerPresent);
 }
 
-TEST_CASE("GameEngine::loadFromAssets: человек помечен как isHuman")
+TEST_CASE("GameEngine::loadFromAssets: 5 игроков — человек + 4 бота, только человек isHuman")
 {
     GameEngine engine;
     bool loaded = engine.loadFromAssets(ASSETS_DIR);
     CHECK(loaded);
-    CHECK(engine.state().players().size() == 1u);
+    CHECK(engine.state().players().size() == 5u);
     CHECK(engine.state().players()[0].isHuman());
+    for (size_t i = 1; i < engine.state().players().size(); ++i)
+        CHECK(!engine.state().players()[i].isHuman());
+}
+
+TEST_CASE("GameEngine::loadFromAssets: у ботов 4 разные расы, все отличные от человеческой")
+{
+    GameEngine engine;
+    CHECK(engine.loadFromAssets(ASSETS_DIR));
+
+    CHECK(engine.state().players()[0].race().getId() == "humans");
+
+    std::vector<std::string> botRaces;
+    for (size_t i = 1; i < engine.state().players().size(); ++i)
+        botRaces.push_back(engine.state().players()[i].race().getId());
+
+    CHECK(botRaces.size() == 4u);
+    for (const auto &id : botRaces)
+        CHECK(id != "humans");
+
+    // Все 4 расы у ботов должны быть разными (не два бота с одной расой).
+    for (size_t i = 0; i < botRaces.size(); ++i)
+        for (size_t j = i + 1; j < botRaces.size(); ++j)
+            CHECK(botRaces[i] != botRaces[j]);
+}
+
+TEST_CASE("GameEngine::loadFromAssets: столица каждого игрока стоит на его точке пятиугольника")
+{
+    GameEngine engine;
+    CHECK(engine.loadFromAssets(ASSETS_DIR));
+
+    const auto &capitals = StartLayout::pentagonCapitals();
+    for (size_t i = 0; i < engine.state().players().size(); ++i)
+    {
+        const auto &tiles = engine.state().players()[i].settlements()[0].tiles();
+        bool centerPresent = false;
+        for (const auto &t : tiles)
+            if (t.getCoords().q == capitals[i].q && t.getCoords().r == capitals[i].r)
+                centerPresent = true;
+        CHECK(centerPresent);
+    }
+}
+
+TEST_CASE("GameEngine::loadFromAssets: у всех игроков стартовый гарнизон не пуст")
+{
+    GameEngine engine;
+    CHECK(engine.loadFromAssets(ASSETS_DIR));
+
+    for (const auto &p : engine.state().players())
+        CHECK(!p.settlements()[0].garrison().empty());
+}
+
+TEST_CASE("GameEngine: полная партия — 10 ходов подряд с 4 ботами не падает (дымовой тест)")
+{
+    // Это и есть проверка "можно запустить и играть тестовую партию" на
+    // уровне логики, без GUI: свежая игра из loadFromAssets, несколько ходов
+    // endTurn() подряд (боты реально принимают решения через AIController),
+    // и после каждого хода — что состояние осталось внутренне непротиворечивым.
+    GameEngine engine;
+    CHECK(engine.loadFromAssets(ASSETS_DIR));
+
+    for (int turn = 0; turn < 10; ++turn)
+    {
+        CHECK_NOTHROW(engine.endTurn());
+
+        // Игроков не должно физически пропадать (даже проигравший остаётся
+        // в списке без поселений, до этого пункта в 10 ходов дойти маловероятно).
+        CHECK(engine.state().players().size() == 5u);
+
+        auto victory = engine.state().checkVictory();
+        if (victory.hasWinner())
+            break; // партия завершилась раньше — тоже валидный, ожидаемый исход
+    }
 }
 
 TEST_CASE("GameEngine::endTurn: не разыгрывает ход человека автоматически (регрессия)")
@@ -76,11 +148,14 @@ TEST_CASE("GameEngine::endTurn: боту (isHuman=false) реально разы
     GameEngine engine;
     CHECK(engine.loadFromAssets(ASSETS_DIR));
 
+    // id 1..4 уже заняты настоящими ботами из loadFromAssets — берём
+    // заведомо свободный id, а не полагаемся на конкретный индекс в векторе.
+    const int extraBotId = 99;
     Player bot;
-    bot.setId(1);
+    bot.setId(extraBotId);
     bot.setRace(engine.state().players()[0].race());
     bot.loadTechnologies(engine.techCatalog());
-    Settlement s(1, SettlementType::Village);
+    Settlement s(extraBotId, SettlementType::Village);
     s.addTile(Tile(0, 0));
     s.seedInitialPopulation(60); // всё сразу в idle — ИИ есть, что распределять
     bot.addSettlement(s);
@@ -88,7 +163,15 @@ TEST_CASE("GameEngine::endTurn: боту (isHuman=false) реально разы
 
     engine.endTurn();
 
-    const auto &alloc = engine.state().players()[1].settlements()[0].allocation();
-    int assigned = alloc.science + alloc.industry + alloc.trade + alloc.diplomacy;
-    CHECK(assigned > 0); // ИИ должен был распределить хоть что-то за ход
+    Player *addedBot = nullptr;
+    for (auto &p : engine.state().players())
+        if (p.id() == extraBotId)
+            addedBot = &p;
+    CHECK(addedBot != nullptr);
+    if (addedBot != nullptr)
+    {
+        const auto &alloc = addedBot->settlements()[0].allocation();
+        int assigned = alloc.science + alloc.industry + alloc.trade + alloc.diplomacy;
+        CHECK(assigned > 0); // ИИ должен был распределить хоть что-то за ход
+    }
 }

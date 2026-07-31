@@ -16,6 +16,57 @@ static json loadFile(const std::string &path)
     return data;
 }
 
+static Player createPlayer(int id, bool isHuman, const Race &race,
+                           const std::vector<Hero> &allHeroes,
+                           const std::vector<Technology> &techCatalog,
+                           const Unit &startingUnitPrototype,
+                           Coords capitalCenter, int mapWidth, int mapHeight)
+{
+    Player p;
+    p.setId(id);
+    p.setIsHuman(isHuman);
+    p.setRace(race);
+    p.loadTechnologies(techCatalog);
+
+    for (const auto &h : allHeroes)
+        if (h.getRaceId() == race.getId())
+            p.addHero(h);
+
+    Settlement capital(id, SettlementType::Village);
+    capital.seedInitialPopulation(80);
+    capital.assignFromIdle(Sphere::Science, 15);
+    capital.assignFromIdle(Sphere::Industry, 25);
+    capital.assignFromIdle(Sphere::Trade, 10);
+    capital.assignFromIdle(Sphere::Diplomacy, 5);
+
+    Unit garrisonUnit = startingUnitPrototype;
+    garrisonUnit.setTrained(true);
+    capital.addToGarrison({garrisonUnit});
+
+    for (int dx = -1; dx <= 1; ++dx)
+    {
+        for (int dy = -1; dy <= 1; ++dy)
+        {
+            int q = capitalCenter.q + dx, r = capitalCenter.r + dy;
+            if (q >= 0 && q < mapWidth && r >= 0 && r < mapHeight)
+                capital.addTile(Tile(q, r));
+        }
+    }
+
+    p.addSettlement(capital);
+
+    for (const auto &t : techCatalog)
+    {
+        if (t.getPrerequisiteIds().empty())
+        {
+            p.setCurrentResearch(t.getId());
+            break;
+        }
+    }
+
+    return p;
+}
+
 bool GameEngine::loadFromAssets(const std::string &assetsDir)
 {
     json racesJson = loadFile(assetsDir + "/races.json");
@@ -35,68 +86,54 @@ bool GameEngine::loadFromAssets(const std::string &assetsDir)
     m_unitCatalog = Unit::loadAllFromJson(unitsJson["units"]);
     m_politicalActionCatalog = PoliticalAction::loadAllFromJson(politicsJson["politicalActions"]);
 
-    Race humanRace;
+    std::vector<Race> allRaces;
     for (const auto &r : racesJson["races"])
+        allRaces.push_back(Race::loadFromJson(r));
+
+    auto raceById = [&allRaces](const std::string &id) -> const Race &
     {
-        Race race = Race::loadFromJson(r);
-        if (race.getId() == "humans")
-            humanRace = race;
-    }
+        for (const auto &r : allRaces)
+            if (r.getId() == id)
+                return r;
+        return allRaces.front(); // не должно случиться при исправных данных
+    };
 
     auto allHeroes = Hero::loadAllFromJson(heroesJson["heroes"]);
 
-    Player human;
-    human.setId(0);
-    human.setIsHuman(true);
-    human.setRace(humanRace);
-    human.loadTechnologies(m_techCatalog);
-
-    for (const auto &h : allHeroes)
+    Unit startingUnit = m_unitCatalog.front();
+    for (const auto &u : m_unitCatalog)
     {
-        if (h.getRaceId() == "humans")
-            human.addHero(h);
+        if (u.getRequiredBuildingId().empty())
+        {
+            startingUnit = u;
+            break;
+        }
     }
-
-    Settlement capital(0, SettlementType::Village);
-    capital.seedInitialPopulation(80);
-    capital.assignFromIdle(Sphere::Science, 15);
-    capital.assignFromIdle(Sphere::Industry, 25);
-    capital.assignFromIdle(Sphere::Trade, 10);
-    capital.assignFromIdle(Sphere::Diplomacy, 5);
-
-    int cx = StartLayout::pentagonCapitals()[0].q;
-    int cy = StartLayout::pentagonCapitals()[0].r;
 
     MapGenerationParams mapParams;
     mapParams.width = StartLayout::MAP_WIDTH;
     mapParams.height = StartLayout::MAP_HEIGHT;
     mapParams.guaranteedLandCenters = StartLayout::pentagonCapitals();
     mapParams.guaranteedLandRadius = StartLayout::CAPITAL_LAND_RADIUS;
-
     Map gameMap = MapGenerator::generate(mapParams);
 
-    for (int dx = -1; dx <= 1; ++dx)
-    {
-        for (int dy = -1; dy <= 1; ++dy)
-        {
-            int q = cx + dx, r = cy + dy;
-            if (q >= 0 && q < StartLayout::MAP_WIDTH && r >= 0 && r < StartLayout::MAP_HEIGHT)
-                capital.addTile(Tile(q, r));
-        }
-    }
+    const std::vector<std::string> botRaceIds = {"dwarves", "gnomes", "elves", "orcs"};
+    const auto &capitals = StartLayout::pentagonCapitals();
 
-    human.addSettlement(capital);
-
-    for (auto &t : m_techCatalog)
-    {
-        if (t.getPrerequisiteIds().empty())
-        {
-            human.setCurrentResearch(t.getId());
-            break;
-        }
-    }
-
+    Player human = createPlayer(0, true, raceById("humans"), allHeroes,
+                                m_techCatalog, startingUnit, capitals[0],
+                                StartLayout::MAP_WIDTH, StartLayout::MAP_HEIGHT);
     m_state.addPlayer(human);
+
+    for (size_t i = 0; i < botRaceIds.size(); ++i)
+    {
+        Player bot = createPlayer(static_cast<int>(i) + 1, false,
+                                  raceById(botRaceIds[i]), allHeroes,
+                                  m_techCatalog, startingUnit, capitals[i + 1],
+                                  StartLayout::MAP_WIDTH, StartLayout::MAP_HEIGHT);
+        m_state.addPlayer(bot);
+    }
+
     m_state.setMap(gameMap);
 
     return true;
