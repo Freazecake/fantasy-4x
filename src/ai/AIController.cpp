@@ -83,7 +83,8 @@ void AIController::decideAllocations(Settlement &s, GlobalPhase phase)
     if (remaining > 0)
     {
         auto best = std::max_element(scores, scores + 4,
-            [](const SphereScore &a, const SphereScore &b) { return a.score < b.score; });
+                                     [](const SphereScore &a, const SphereScore &b)
+                                     { return a.score < b.score; });
         s.assignFromIdle(best->sphere, remaining);
     }
 }
@@ -147,6 +148,12 @@ void AIController::decidePoliticalAction(Player &p, const std::vector<PoliticalA
             if (pl.id() == p.id())
                 continue;
 
+            // Уже союзники — не предлагаем заключить союз ещё раз, это
+            // просто трата очков без какого-либо нового эффекта.
+            if (a.getType() == PoliticalActionType::Alliance &&
+                GameState::isAllied(state, p.id(), pl.id()))
+                continue;
+
             float s = AIStrategy::scorePoliticalAction(p, a, pl, state.CurPhase());
             if (s > 0.0f)
                 candidates.push_back({&a, pl.id(), s});
@@ -157,7 +164,8 @@ void AIController::decidePoliticalAction(Player &p, const std::vector<PoliticalA
         return;
 
     auto best = std::max_element(candidates.begin(), candidates.end(),
-        [](const ActionCandidate &a, const ActionCandidate &b) { return a.score < b.score; });
+                                 [](const ActionCandidate &a, const ActionCandidate &b)
+                                 { return a.score < b.score; });
 
     if (best->score <= 0.0f)
         return;
@@ -216,7 +224,7 @@ void AIController::decideMilitaryActions(Player &p, GameState &state, GlobalPhas
                 Coords target = s.tiles().front().getCoords();
 
                 if (state.map().movementCostTo(mine->position(), target,
-                                                mine->movementPointsRemaining()) < 0)
+                                               mine->movementPointsRemaining()) < 0)
                     continue;
 
                 Army garrisonAsArmy("enemy_garrison", s.ownerId(), target, s.garrison());
@@ -230,7 +238,7 @@ void AIController::decideMilitaryActions(Player &p, GameState &state, GlobalPhas
                 Coords target = enemyArmy.position();
 
                 if (state.map().movementCostTo(mine->position(), target,
-                                                mine->movementPointsRemaining()) < 0)
+                                               mine->movementPointsRemaining()) < 0)
                     continue;
 
                 float score = AIStrategy::scoreAttack(*mine, enemyArmy, phase);

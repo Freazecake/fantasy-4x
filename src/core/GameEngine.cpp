@@ -95,7 +95,7 @@ bool GameEngine::loadFromAssets(const std::string &assetsDir)
         for (const auto &r : allRaces)
             if (r.getId() == id)
                 return r;
-        return allRaces.front(); // не должно случиться при исправных данных
+        return allRaces.front();
     };
 
     auto allHeroes = Hero::loadAllFromJson(heroesJson["heroes"]);

@@ -204,8 +204,18 @@ float AIStrategy::scorePoliticalAction(const Player &p, const PoliticalAction &a
         break;
     }
 
-    int cost = std::max(1, a.getCost());
-    return base * phaseWeightDiplomacy(phase) / static_cast<float>(cost);
+    // ВАЖНО: раньше здесь было `base * phaseWeight / cost`. Деление на cost
+    // превращало это в "эффективность на очко потраченной дипломатии", что
+    // уместно для повторяемых, дешёвых обменов (как TradeMarket), но не для
+    // редких стратегических решений вроде Conquest/Vassalize. Conquest стоит
+    // 300, Alliance — 50 (см. assets/political_actions.json): при делении на
+    // cost Conquest против ЛЮБОЙ, даже предельно слабой цели (base=3.0)
+    // проигрывал Alliance (3.0/300=0.01 < 1.0/50=0.02) — ИИ математически не
+    // мог выбрать ничего, кроме Alliance, пока хватало очков на неё. Отсюда
+    // и наблюдаемое поведение "все заключили союз и больше ничего не
+    // происходит". Без деления на cost базовые веса действительно определяют
+    // приоритет, как и задумывалось.
+    return base * phaseWeightDiplomacy(phase);
 }
 
 float AIStrategy::scoreAttack(const Army &mine, const Army &enemyArmyOrGarrisonOwner, GlobalPhase phase)

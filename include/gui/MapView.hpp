@@ -24,6 +24,14 @@ struct SettlementMarker
     int ownerId;
 };
 
+enum class PlayerRelation
+{
+    Self,
+    Ally,
+    Vassal,
+    EnemyOrNeutral
+};
+
 class MapView : public QGraphicsView
 {
     Q_OBJECT
@@ -33,7 +41,8 @@ public:
     void renderMap(const Map &map,
                    const std::vector<SettlementMarker> &settlementTiles = {},
                    const std::vector<Army> &armies = {},
-                   int viewerPlayerId = 0);
+                   int viewerPlayerId = 0,
+                   const std::map<int, PlayerRelation> &relations = {});
 
     void setReachableTiles(const std::set<std::pair<int, int>> &tiles);
     void clearReachableTiles();
@@ -60,6 +69,7 @@ private:
     std::map<std::pair<int, int>, TileType> m_tileTypes;
     std::map<std::pair<int, int>, int> m_settlementOwners;
     int m_viewerPlayerId = 0;
+    std::map<int, PlayerRelation> m_playerRelations;
     std::pair<int, int> m_hoveredCoords{-9999, -9999};
 
     std::vector<Army> m_armies;
@@ -72,6 +82,7 @@ private:
     void renderArmyTokens();
     void clearOverlayItems();
     QPen settlementPenFor(int q, int r) const;
+    PlayerRelation relationOf(int ownerId) const;
 
     QPointF axialToPixel(int q, int r) const;
     QPolygonF hexagonCorners(const QPointF &center) const;

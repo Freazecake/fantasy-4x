@@ -10,6 +10,10 @@
 #include <QSplitter>
 #include <QStackedWidget>
 #include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QScrollArea>
+#include <QPushButton>
+#include <QLabel>
 #include <QWidget>
 #include <QApplication>
 #include <QMessageBox>
@@ -52,15 +56,81 @@ QWidget *MainWindow::buildGameView()
     auto *rightLayout = new QVBoxLayout(rightPanel);
     rightLayout->setContentsMargins(4, 4, 4, 4);
 
-    auto *topRightSplitter = new QSplitter(Qt::Vertical, rightPanel);
-    topRightSplitter->addWidget(m_settlementPanel);
-    topRightSplitter->addWidget(m_techTreePanel);
-    rightLayout->addWidget(topRightSplitter);
+    // Кнопки-переключатели вместо одновременного показа обеих панелей —
+    // раньше SettlementPanel и TechTreePanel были видны сразу вдвоём (через
+    // QSplitter), из-за чего вместе с длинными списками построек/техов
+    // правая часть требовала намного больше места, чем ей отводил
+    // stretch-фактор, и карта слева сжималась до минимума.
+    auto *toggleRow = new QWidget(rightPanel);
+    auto *toggleLayout = new QHBoxLayout(toggleRow);
+    toggleLayout->setContentsMargins(0, 0, 0, 0);
+    auto *settlementToggle = new QPushButton(QStringLiteral("Поселение"), toggleRow);
+    auto *techToggle = new QPushButton(QStringLiteral("Технологии"), toggleRow);
+    settlementToggle->setCheckable(true);
+    techToggle->setCheckable(true);
+    settlementToggle->setChecked(true);
+    toggleLayout->addWidget(settlementToggle);
+    toggleLayout->addWidget(techToggle);
+    rightLayout->addWidget(toggleRow);
+
+    auto *legendRow = new QWidget(rightPanel);
+    auto *legendLayout = new QHBoxLayout(legendRow);
+    legendLayout->setContentsMargins(0, 0, 0, 0);
+    auto addSwatch = [&](const QString &colorHex, const QString &text)
+    {
+        auto *swatch = new QLabel(legendRow);
+        swatch->setFixedSize(10, 10);
+        swatch->setStyleSheet(QStringLiteral("background-color:%1; border:1px solid #222;").arg(colorHex));
+        legendLayout->addWidget(swatch);
+        legendLayout->addWidget(new QLabel(text, legendRow));
+    };
+    addSwatch(QStringLiteral("#3C78D2"), QStringLiteral("Вы"));
+    addSwatch(QStringLiteral("#46AA5A"), QStringLiteral("Союзник"));
+    addSwatch(QStringLiteral("#965ABE"), QStringLiteral("Вассал"));
+    addSwatch(QStringLiteral("#C83C3C"), QStringLiteral("Враг"));
+    legendLayout->addStretch();
+    rightLayout->addWidget(legendRow);
+
+    // Каждая панель — в своём QScrollArea: если список построек/техов не
+    // помещается по высоте, скроллится содержимое ВНУТРИ панели, а не
+    // раздувает окно целиком (это и было причиной, что кнопка конца хода
+    // улетала за нижний край экрана).
+    auto *panelStack = new QStackedWidget(rightPanel);
+
+    auto *settlementScroll = new QScrollArea(rightPanel);
+    settlementScroll->setWidgetResizable(true);
+    settlementScroll->setWidget(m_settlementPanel);
+    panelStack->addWidget(settlementScroll);
+
+    auto *techScroll = new QScrollArea(rightPanel);
+    techScroll->setWidgetResizable(true);
+    techScroll->setWidget(m_techTreePanel);
+    panelStack->addWidget(techScroll);
+
+    rightLayout->addWidget(panelStack, /*stretch=*/1);
+    // TurnPanel — намеренно ВНЕ QStackedWidget/QScrollArea выше: сводка
+    // ресурсов, список армий и кнопка "Конец хода" должны быть видны всегда,
+    // независимо от того, что происходит в переключаемых панелях.
     rightLayout->addWidget(m_turnPanel);
 
+    connect(settlementToggle, &QPushButton::clicked, this, [=]()
+            {
+        panelStack->setCurrentIndex(0);
+        settlementToggle->setChecked(true);
+        techToggle->setChecked(false); });
+    connect(techToggle, &QPushButton::clicked, this, [=]()
+            {
+        panelStack->setCurrentIndex(1);
+        techToggle->setChecked(true);
+        settlementToggle->setChecked(false); });
+
     centralSplitter->addWidget(rightPanel);
-    centralSplitter->setStretchFactor(0, 3);
-    centralSplitter->setStretchFactor(1, 2);
+    centralSplitter->setStretchFactor(0, 1);
+    centralSplitter->setStretchFactor(1, 0);
+    // Явные стартовые размеры — без этого QSplitter отталкивается от
+    // минимальных размеров содержимого правой панели, а не от stretch-
+    // факторов, и карта при первом запуске получала едва ли четверть окна.
+    centralSplitter->setSizes({700, 300});
 
     connect(m_turnPanel, &TurnPanel::endTurnClicked, this, &MainWindow::onEndTurn);
     connect(m_turnPanel, &TurnPanel::armySelected, this, &MainWindow::onArmySelected);
@@ -145,8 +215,14 @@ void MainWindow::refreshAllPanels()
 {
     Player &human = m_engine.state().players()[0];
 
+    // На карте нужно видеть ВСЕХ игроков — иначе чужие поселения/армии
+    // просто не существуют для человека, и атаковать/оценивать обстановку
+    // невозможно. В панели управления (updateArmyList) по-прежнему только
+    // свои армии — чужими командовать нельзя, только видеть их на карте.
     std::vector<SettlementMarker> settlementTiles;
     std::vector<Army> allPlayersArmies;
+    std::map<int, PlayerRelation> relations;
+    const auto &vassalizations = m_engine.state().vassalizations();
     for (const auto &p : m_engine.state().players())
     {
         for (const auto &s : p.settlements())
@@ -159,10 +235,29 @@ void MainWindow::refreshAllPanels()
         }
         for (const auto &a : p.armies())
             allPlayersArmies.push_back(a);
+
+        if (p.id() == human.id())
+        {
+            relations[p.id()] = PlayerRelation::Self;
+            continue;
+        }
+        bool allied = GameState::isAllied(m_engine.state(), human.id(), p.id());
+        auto vAsVassal = vassalizations.find(p.id());        // p — чей-то вассал?
+        auto vHumanVassal = vassalizations.find(human.id()); // человек — чей-то вассал?
+        bool vassalRelation =
+            (vAsVassal != vassalizations.end() && vAsVassal->second == human.id()) || // p — вассал человека
+            (vHumanVassal != vassalizations.end() && vHumanVassal->second == p.id()); // человек — вассал p
+
+        if (allied)
+            relations[p.id()] = PlayerRelation::Ally;
+        else if (vassalRelation)
+            relations[p.id()] = PlayerRelation::Vassal;
+        else
+            relations[p.id()] = PlayerRelation::EnemyOrNeutral;
     }
 
     m_mapView->clearReachableTiles();
-    m_mapView->renderMap(m_engine.state().map(), settlementTiles, allPlayersArmies, human.id());
+    m_mapView->renderMap(m_engine.state().map(), settlementTiles, allPlayersArmies, human.id(), relations);
     m_turnPanel->updateArmyList(human.armies());
 
     if (!human.settlements().empty())

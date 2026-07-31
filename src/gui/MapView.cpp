@@ -95,7 +95,8 @@ std::pair<int, int> MapView::pixelToAxial(const QPointF &scenePos) const
 void MapView::renderMap(const Map &map,
                         const std::vector<SettlementMarker> &settlementTiles,
                         const std::vector<Army> &armies,
-                        int viewerPlayerId)
+                        int viewerPlayerId,
+                        const std::map<int, PlayerRelation> &relations)
 {
     clearOverlayItems();
     m_scene->clear();
@@ -105,6 +106,7 @@ void MapView::renderMap(const Map &map,
     for (const auto &marker : settlementTiles)
         m_settlementOwners[{marker.q, marker.r}] = marker.ownerId;
     m_viewerPlayerId = viewerPlayerId;
+    m_playerRelations = relations;
     m_hoveredCoords = {-9999, -9999};
 
     m_armies = armies;
@@ -133,15 +135,32 @@ void MapView::renderMap(const Map &map,
     renderArmyTokens();
 }
 
+PlayerRelation MapView::relationOf(int ownerId) const
+{
+    if (ownerId == m_viewerPlayerId)
+        return PlayerRelation::Self;
+    auto it = m_playerRelations.find(ownerId);
+    return it != m_playerRelations.end() ? it->second : PlayerRelation::EnemyOrNeutral;
+}
+
 QPen MapView::settlementPenFor(int q, int r) const
 {
     auto it = m_settlementOwners.find({q, r});
     if (it == m_settlementOwners.end())
-        return QPen(QColor(58, 50, 38), 1);
+        return QPen(QColor(58, 50, 38), 1); // обычная клетка, ничьё поселение
 
-    bool isMine = (it->second == m_viewerPlayerId);
-    return isMine ? QPen(QColor(212, 175, 55), 2)
-                  : QPen(QColor(200, 60, 60), 2);
+    switch (relationOf(it->second))
+    {
+    case PlayerRelation::Self:
+        return QPen(QColor(212, 175, 55), 2); // золотая — моё
+    case PlayerRelation::Ally:
+        return QPen(QColor(70, 170, 90), 2); // зелёная — союзник
+    case PlayerRelation::Vassal:
+        return QPen(QColor(150, 90, 190), 2); // фиолетовая — вассал/сюзерен
+    case PlayerRelation::EnemyOrNeutral:
+        return QPen(QColor(200, 60, 60), 2); // красная — враг
+    }
+    return QPen(QColor(200, 60, 60), 2);
 }
 
 void MapView::mouseMoveEvent(QMouseEvent *event)
@@ -242,7 +261,22 @@ void MapView::renderArmyTokens()
     {
         auto pos = army.position();
         QPointF center = axialToPixel(pos.q, pos.r);
-        QColor fill = (army.getOwnerId() == m_viewerPlayerId) ? QColor(60, 120, 210) : QColor(200, 60, 60);
+        QColor fill;
+        switch (relationOf(army.getOwnerId()))
+        {
+        case PlayerRelation::Self:
+            fill = QColor(60, 120, 210);
+            break; // синяя — моя
+        case PlayerRelation::Ally:
+            fill = QColor(70, 170, 90);
+            break; // зелёная — союзник
+        case PlayerRelation::Vassal:
+            fill = QColor(150, 90, 190);
+            break; // фиолетовая — вассал/сюзерен
+        case PlayerRelation::EnemyOrNeutral:
+            fill = QColor(200, 60, 60);
+            break; // красная — враг
+        }
         QPen border = (army.getId() == m_selectedArmyId)
                           ? QPen(QColor(255, 255, 0), 3)
                           : QPen(QColor(20, 20, 20), 2);
