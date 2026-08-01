@@ -289,3 +289,165 @@ TEST_CASE("Player::removeArmy удаляет армию из списка игр
     CHECK(p.armies().size() == 1u);
     CHECK(p.armies()[0].getId() == "a2");
 }
+
+static Unit makeSettlerUnit()
+{
+    return Unit::loadFromJson({
+        {"id", "settler"}, {"name", "Поселенец"},
+        {"stats", {{"health", 10}, {"attack", 0}, {"defense", 1}, {"movementPoints", 2}}},
+        {"tier", 0}, {"requiredBuildingId", ""}, {"recruitCost", 60}, {"populationCost", 80},
+        {"isSettler", true}
+    });
+}
+
+static Unit makeMilitiaUnit()
+{
+    return Unit::loadFromJson({
+        {"id", "militia"}, {"name", "Ополченец"},
+        {"stats", {{"health", 20}, {"attack", 3}, {"defense", 2}, {"movementPoints", 2}}},
+        {"tier", 0}, {"requiredBuildingId", ""}, {"recruitCost", 15}, {"populationCost", 20}
+    });
+}
+
+TEST_CASE("Army::isSettlerArmy: true только для непустой армии из одних поселенцев")
+{
+    Army settlerArmy("s1", 0, {0, 0}, {makeSettlerUnit()});
+    CHECK(settlerArmy.isSettlerArmy());
+
+    Army militiaArmy("m1", 0, {0, 0}, {makeMilitiaUnit()});
+    CHECK(!militiaArmy.isSettlerArmy());
+
+    Army mixedArmy("mix1", 0, {0, 0}, {makeSettlerUnit(), makeMilitiaUnit()});
+    CHECK(!mixedArmy.isSettlerArmy());
+
+    Army empty("e1", 0, {0, 0}, {});
+    CHECK(!empty.isSettlerArmy());
+}
+
+TEST_CASE("GameState::canFoundSettlementAt: false вне карты и на воде")
+{
+    Map map = Map::generateMap(10, 10);
+    map.tileAt(5, 5)->setType(TileType::Water);
+
+    GameState state;
+    state.setMap(map);
+
+    CHECK(!state.canFoundSettlementAt(Coords(-5, -5)));  // вне карты
+    CHECK(!state.canFoundSettlementAt(Coords(100, 100))); // вне карты
+    CHECK(!state.canFoundSettlementAt(Coords(5, 5)));     // вода
+    CHECK(state.canFoundSettlementAt(Coords(2, 2)));      // обычная свободная клетка
+}
+
+TEST_CASE("GameState::canFoundSettlementAt: false на клетке, занятой чужим поселением")
+{
+    Map map = Map::generateMap(10, 10);
+    GameState state;
+    state.setMap(map);
+
+    Player p;
+    p.setId(0);
+    Settlement s(0, SettlementType::Village);
+    s.addTile(Tile(4, 4));
+    p.addSettlement(s);
+    state.addPlayer(p);
+
+    CHECK(!state.canFoundSettlementAt(Coords(4, 4)));
+    CHECK(state.canFoundSettlementAt(Coords(0, 0)));
+}
+
+TEST_CASE("GameState::foundSettlementFromArmy: отказ, если армия не из поселенца")
+{
+    Map map = Map::generateMap(10, 10);
+    GameState state;
+    state.setMap(map);
+
+    Player p;
+    p.setId(0);
+    p.addArmy(Army("m1", 0, {2, 2}, {makeMilitiaUnit()}));
+    state.addPlayer(p);
+
+    auto result = state.foundSettlementFromArmy("m1");
+    CHECK(!result.success);
+    CHECK(!result.errorMessage.empty());
+    CHECK(state.players()[0].armies().size() == 1u); // армия осталась на месте
+}
+
+TEST_CASE("GameState::foundSettlementFromArmy: отказ на воде и вне карты")
+{
+    Map map = Map::generateMap(10, 10);
+    map.tileAt(3, 3)->setType(TileType::Water);
+    GameState state;
+    state.setMap(map);
+
+    Player p;
+    p.setId(0);
+    p.addArmy(Army("s1", 0, {3, 3}, {makeSettlerUnit()}));
+    state.addPlayer(p);
+
+    auto result = state.foundSettlementFromArmy("s1");
+    CHECK(!result.success);
+    CHECK(state.players()[0].settlements().empty());
+    CHECK(state.players()[0].armies().size() == 1u);
+}
+
+TEST_CASE("GameState::foundSettlementFromArmy: отказ на клетке, занятой чужим поселением")
+{
+    Map map = Map::generateMap(10, 10);
+    GameState state;
+    state.setMap(map);
+
+    Player enemy;
+    enemy.setId(1);
+    Settlement es(1, SettlementType::Village);
+    es.addTile(Tile(6, 6));
+    enemy.addSettlement(es);
+    state.addPlayer(enemy);
+
+    Player p;
+    p.setId(0);
+    p.addArmy(Army("s1", 0, {6, 6}, {makeSettlerUnit()}));
+    state.addPlayer(p);
+
+    auto result = state.foundSettlementFromArmy("s1");
+    CHECK(!result.success);
+    CHECK(state.players()[0].settlements().size() == 1u); // чужой город не пострадал
+}
+
+TEST_CASE("GameState::foundSettlementFromArmy: успешное основание списывает армию-поселенца")
+{
+    Map map = Map::generateMap(10, 10);
+    GameState state;
+    state.setMap(map);
+
+    Player p;
+    p.setId(0);
+    p.addArmy(Army("s1", 0, {5, 5}, {makeSettlerUnit()}));
+    state.addPlayer(p);
+
+    auto result = state.foundSettlementFromArmy("s1");
+    CHECK(result.success);
+    CHECK(result.errorMessage.empty());
+
+    const Player &after = state.players()[0];
+    CHECK(after.armies().empty());               // поселенец израсходован
+    CHECK(after.settlements().size() == 1u);
+    CHECK(after.settlements()[0].tiles().size() == 9u); // площадка 3x3
+    CHECK(after.settlements()[0].anchorCoords().q == 4);
+    CHECK(after.settlements()[0].anchorCoords().r == 4);
+}
+
+TEST_CASE("GameState::foundSettlementFromArmy: у края карты площадка обрезается, но основание проходит")
+{
+    Map map = Map::generateMap(10, 10);
+    GameState state;
+    state.setMap(map);
+
+    Player p;
+    p.setId(0);
+    p.addArmy(Army("s1", 0, {0, 0}, {makeSettlerUnit()}));
+    state.addPlayer(p);
+
+    auto result = state.foundSettlementFromArmy("s1");
+    CHECK(result.success);
+    CHECK(state.players()[0].settlements()[0].tiles().size() == 4u); // только клетки внутри карты
+}

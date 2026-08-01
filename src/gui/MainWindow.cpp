@@ -56,11 +56,6 @@ QWidget *MainWindow::buildGameView()
     auto *rightLayout = new QVBoxLayout(rightPanel);
     rightLayout->setContentsMargins(4, 4, 4, 4);
 
-    // Кнопки-переключатели вместо одновременного показа обеих панелей —
-    // раньше SettlementPanel и TechTreePanel были видны сразу вдвоём (через
-    // QSplitter), из-за чего вместе с длинными списками построек/техов
-    // правая часть требовала намного больше места, чем ей отводил
-    // stretch-фактор, и карта слева сжималась до минимума.
     auto *toggleRow = new QWidget(rightPanel);
     auto *toggleLayout = new QHBoxLayout(toggleRow);
     toggleLayout->setContentsMargins(0, 0, 0, 0);
@@ -91,10 +86,6 @@ QWidget *MainWindow::buildGameView()
     legendLayout->addStretch();
     rightLayout->addWidget(legendRow);
 
-    // Каждая панель — в своём QScrollArea: если список построек/техов не
-    // помещается по высоте, скроллится содержимое ВНУТРИ панели, а не
-    // раздувает окно целиком (это и было причиной, что кнопка конца хода
-    // улетала за нижний край экрана).
     auto *panelStack = new QStackedWidget(rightPanel);
 
     auto *settlementScroll = new QScrollArea(rightPanel);
@@ -107,10 +98,7 @@ QWidget *MainWindow::buildGameView()
     techScroll->setWidget(m_techTreePanel);
     panelStack->addWidget(techScroll);
 
-    rightLayout->addWidget(panelStack, /*stretch=*/1);
-    // TurnPanel — намеренно ВНЕ QStackedWidget/QScrollArea выше: сводка
-    // ресурсов, список армий и кнопка "Конец хода" должны быть видны всегда,
-    // независимо от того, что происходит в переключаемых панелях.
+    rightLayout->addWidget(panelStack, 1);
     rightLayout->addWidget(m_turnPanel);
 
     connect(settlementToggle, &QPushButton::clicked, this, [=]()
@@ -127,13 +115,12 @@ QWidget *MainWindow::buildGameView()
     centralSplitter->addWidget(rightPanel);
     centralSplitter->setStretchFactor(0, 1);
     centralSplitter->setStretchFactor(1, 0);
-    // Явные стартовые размеры — без этого QSplitter отталкивается от
-    // минимальных размеров содержимого правой панели, а не от stretch-
-    // факторов, и карта при первом запуске получала едва ли четверть окна.
     centralSplitter->setSizes({700, 300});
 
     connect(m_turnPanel, &TurnPanel::endTurnClicked, this, &MainWindow::onEndTurn);
     connect(m_turnPanel, &TurnPanel::armySelected, this, &MainWindow::onArmySelected);
+    connect(m_turnPanel, &TurnPanel::settlementSelected, this, &MainWindow::onSettlementListSelected);
+    connect(m_turnPanel, &TurnPanel::foundSettlementRequested, this, &MainWindow::onFoundSettlementRequested);
     connect(m_mapView, &MapView::tileClicked, this, &MainWindow::onTileClicked);
     connect(m_mapView, &MapView::tileHovered, this, &MainWindow::onTileHovered);
     connect(m_mapView, &MapView::armySelected, this, &MainWindow::onArmySelected);
@@ -201,9 +188,40 @@ QWidget *MainWindow::buildGameView()
     return centralSplitter;
 }
 
+Settlement *MainWindow::selectedHumanSettlement(Player &human)
+{
+    if (human.settlements().empty())
+    {
+        m_hasSelectedSettlement = false;
+        return nullptr;
+    }
+
+    if (m_hasSelectedSettlement)
+    {
+        for (auto &s : human.settlements())
+        {
+            Coords a = s.anchorCoords();
+            if (a.q == m_selectedSettlementAnchor.q && a.r == m_selectedSettlementAnchor.r)
+                return &s;
+        }
+    }
+
+    Settlement &fallback = human.settlements().front();
+    m_selectedSettlementAnchor = fallback.anchorCoords();
+    m_hasSelectedSettlement = true;
+    return &fallback;
+}
+
+void MainWindow::selectSettlement(const Settlement &settlement)
+{
+    m_selectedSettlementAnchor = settlement.anchorCoords();
+    m_hasSelectedSettlement = true;
+}
+
 void MainWindow::onNewGame()
 {
     m_engine.loadFromAssets(ASSETS_DIR);
+    m_hasSelectedSettlement = false;
     refreshAllPanels();
     m_stack->setCurrentIndex(1);
     statusBar()->showMessage(QStringLiteral("Партия начата"), 3000);
@@ -215,10 +233,6 @@ void MainWindow::refreshAllPanels()
 {
     Player &human = m_engine.state().players()[0];
 
-    // На карте нужно видеть ВСЕХ игроков — иначе чужие поселения/армии
-    // просто не существуют для человека, и атаковать/оценивать обстановку
-    // невозможно. В панели управления (updateArmyList) по-прежнему только
-    // свои армии — чужими командовать нельзя, только видеть их на карте.
     std::vector<SettlementMarker> settlementTiles;
     std::vector<Army> allPlayersArmies;
     std::map<int, PlayerRelation> relations;
@@ -242,11 +256,11 @@ void MainWindow::refreshAllPanels()
             continue;
         }
         bool allied = GameState::isAllied(m_engine.state(), human.id(), p.id());
-        auto vAsVassal = vassalizations.find(p.id());        // p — чей-то вассал?
-        auto vHumanVassal = vassalizations.find(human.id()); // человек — чей-то вассал?
+        auto vAsVassal = vassalizations.find(p.id());
+        auto vHumanVassal = vassalizations.find(human.id());
         bool vassalRelation =
-            (vAsVassal != vassalizations.end() && vAsVassal->second == human.id()) || // p — вассал человека
-            (vHumanVassal != vassalizations.end() && vHumanVassal->second == p.id()); // человек — вассал p
+            (vAsVassal != vassalizations.end() && vAsVassal->second == human.id()) ||
+            (vHumanVassal != vassalizations.end() && vHumanVassal->second == p.id());
 
         if (allied)
             relations[p.id()] = PlayerRelation::Ally;
@@ -260,11 +274,13 @@ void MainWindow::refreshAllPanels()
     m_mapView->renderMap(m_engine.state().map(), settlementTiles, allPlayersArmies, human.id(), relations);
     m_turnPanel->updateArmyList(human.armies());
 
-    if (!human.settlements().empty())
+    Settlement *selected = selectedHumanSettlement(human);
+    if (selected)
     {
         m_settlementPanel->showSettlement(
-            human.settlements()[0], m_engine.buildingCatalog(), m_engine.unitCatalog());
+            *selected, m_engine.buildingCatalog(), m_engine.unitCatalog());
     }
+    m_turnPanel->updateSettlementList(human.settlements(), m_selectedSettlementAnchor);
 
     m_techTreePanel->showTechs(
         human.technologies(),
@@ -318,7 +334,9 @@ void MainWindow::onTileClicked(int q, int r)
             auto c = tile.getCoords();
             if (c.q == q && c.r == r)
             {
+                selectSettlement(settlement);
                 m_settlementPanel->showSettlement(settlement, m_engine.buildingCatalog(), m_engine.unitCatalog());
+                m_turnPanel->updateSettlementList(human.settlements(), m_selectedSettlementAnchor);
                 statusBar()->showMessage(QStringLiteral("Поселение"), 5000);
                 return;
             }
@@ -339,7 +357,9 @@ void MainWindow::onArmySelected(const std::string &armyId)
     if (!army)
         return;
 
+    m_selectedArmyId = armyId;
     m_mapView->setSelectedArmy(armyId);
+    m_turnPanel->setFoundSettlementAvailable(army->isSettlerArmy());
 
     auto reachable = m_engine.state().map().reachableTiles(
         army->position(), army->movementPointsRemaining());
@@ -354,6 +374,27 @@ void MainWindow::onArmySelected(const std::string &armyId)
             .arg(army->movementPointsRemaining())
             .arg(army->movementPointsMax()),
         5000);
+}
+
+void MainWindow::onFoundSettlementRequested()
+{
+    if (m_selectedArmyId.empty())
+        return;
+
+    auto result = m_engine.state().foundSettlementFromArmy(m_selectedArmyId);
+    statusBar()->showMessage(QString::fromStdString(
+                                 result.success ? std::string("Город основан!") : result.errorMessage),
+                             5000);
+
+    if (result.success)
+    {
+        m_selectedArmyId.clear();
+        m_hasSelectedSettlement = false; // выбираем новый город в refreshAllPanels
+        m_mapView->clearSelection();
+        m_turnPanel->setFoundSettlementAvailable(false);
+    }
+
+    refreshAllPanels();
 }
 
 void MainWindow::onArmyMoveRequested(const std::string &armyId, int q, int r)
@@ -379,11 +420,30 @@ void MainWindow::onArmyMoveRequested(const std::string &armyId, int q, int r)
 
     refreshAllPanels();
     m_mapView->clearSelection();
+    m_selectedArmyId.clear();
+    m_turnPanel->setFoundSettlementAvailable(false);
+}
+
+void MainWindow::onSettlementListSelected(int q, int r)
+{
+    Player &human = m_engine.state().players()[0];
+    for (auto &settlement : human.settlements())
+    {
+        if (settlement.anchorCoords().q == q && settlement.anchorCoords().r == r)
+        {
+            selectSettlement(settlement);
+            m_settlementPanel->showSettlement(settlement, m_engine.buildingCatalog(), m_engine.unitCatalog());
+            m_turnPanel->updateSettlementList(human.settlements(), m_selectedSettlementAnchor);
+            return;
+        }
+    }
 }
 
 void MainWindow::onSelectionCleared()
 {
     m_mapView->clearSelection();
+    m_selectedArmyId.clear();
+    m_turnPanel->setFoundSettlementAvailable(false);
     statusBar()->clearMessage();
 }
 

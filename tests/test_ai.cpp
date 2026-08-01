@@ -610,3 +610,61 @@ TEST_CASE("AIController::decideTradeExchange: не трогает торговл
 
     CHECK_NEAR(p.resources().trade, 0.5f, 0.001f);
 }
+
+TEST_CASE("AIController::decideSettlerActions: основывает город прямо на месте, если клетка годится")
+{
+    GameState state;
+    state.setMap(Map::generateMap(10, 10));
+
+    Player p;
+    p.setId(0);
+    p.setRace(makeRace("humans", 1, 1, 1, 1, 1, 1));
+
+    Unit settler = Unit::loadFromJson({
+        {"id", "settler"}, {"name", "Поселенец"},
+        {"stats", {{"health", 10}, {"attack", 0}, {"defense", 1}, {"movementPoints", 2}}},
+        {"tier", 0}, {"requiredBuildingId", ""}, {"recruitCost", 60}, {"populationCost", 80},
+        {"isSettler", true}
+    });
+    p.addArmy(Army("settler_army", 0, {5, 5}, {settler}));
+    state.addPlayer(p);
+
+    AIController::decideSettlerActions(state.players()[0], state, GlobalPhase::Phase2_OpenMap);
+
+    CHECK(state.players()[0].settlements().size() == 1u);
+    CHECK(state.players()[0].armies().empty()); // поселенец израсходован
+}
+
+TEST_CASE("AIController::decideSettlerActions: не основывает город на клетке своей же столицы, уходит искать другую")
+{
+    GameState state;
+    state.setMap(Map::generateMap(10, 10));
+
+    Player p;
+    p.setId(0);
+    p.setRace(makeRace("humans", 1, 1, 1, 1, 1, 1));
+
+    Settlement capital(0, SettlementType::Village);
+    for (int dx = -1; dx <= 1; ++dx)
+        for (int dy = -1; dy <= 1; ++dy)
+            capital.addTile(Tile(5 + dx, 5 + dy));
+    capital.seedInitialPopulation(50);
+    p.addSettlement(capital);
+
+    Unit settler = Unit::loadFromJson({
+        {"id", "settler"}, {"name", "Поселенец"},
+        {"stats", {{"health", 10}, {"attack", 0}, {"defense", 1}, {"movementPoints", 3}}},
+        {"tier", 0}, {"requiredBuildingId", ""}, {"recruitCost", 60}, {"populationCost", 80},
+        {"isSettler", true}
+    });
+    // Поселенец стоит внутри клеток своей же столицы — здесь основать нельзя.
+    p.addArmy(Army("settler_army", 0, {5, 5}, {settler}));
+    state.addPlayer(p);
+
+    AIController::decideSettlerActions(state.players()[0], state, GlobalPhase::Phase2_OpenMap);
+
+    CHECK(state.players()[0].settlements().size() == 1u); // новый город ещё не основан
+    Army *army = state.findArmy("settler_army");
+    CHECK(army != nullptr);
+    CHECK(!(army->position().q == 5 && army->position().r == 5)); // ушёл искать другое место
+}

@@ -112,13 +112,15 @@ public:
     const PopulationAllocation &allocation() const { return m_population; }
     const std::vector<Tile> &tiles() const { return m_tiles; }
 
+    Coords anchorCoords() const;
+
     void setType(SettlementType type) { m_type = type; }
     void setOwnerId(int ownerId) { m_ownerId = ownerId; }
 
     void addTile(const Tile &tile);
 
     void seedInitialPopulation(int amount);
-    void growPopulation(float baseGrowthRate, float raceGrowthModifier);
+    void growPopulation(float baseGrowthRate, float raceGrowthModifier, int extraFlatGrowth = 0);
     void reallocate(Sphere from, Sphere to, int amount);
     void assignFromIdle(Sphere sphere, int amount);
     void unassignToIdle(Sphere sphere, int amount);

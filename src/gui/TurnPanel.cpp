@@ -1,6 +1,7 @@
 #include "gui/TurnPanel.hpp"
 #include <QVBoxLayout>
 #include <QGridLayout>
+#include <QFont>
 
 TurnPanel::TurnPanel(QWidget* parent) : QWidget(parent) {
     setupUi();
@@ -36,6 +37,16 @@ void TurnPanel::setupUi() {
 
     layout->addSpacing(8);
 
+    layout->addWidget(new QLabel(QStringLiteral("Мои города:"), this));
+    m_settlementList = new QListWidget(this);
+    m_settlementList->setMaximumHeight(90);
+    connect(m_settlementList, &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
+        emit settlementSelected(item->data(Qt::UserRole).toInt(), item->data(Qt::UserRole + 1).toInt());
+    });
+    layout->addWidget(m_settlementList);
+
+    layout->addSpacing(8);
+
     layout->addWidget(new QLabel(QStringLiteral("Армии:"), this));
     m_armyList = new QListWidget(this);
     m_armyList->setMaximumHeight(120);
@@ -44,11 +55,38 @@ void TurnPanel::setupUi() {
     });
     layout->addWidget(m_armyList);
 
+    m_foundSettlementBtn = new QPushButton(QStringLiteral("Основать город"), this);
+    m_foundSettlementBtn->setVisible(false);
+    connect(m_foundSettlementBtn, &QPushButton::clicked, this, &TurnPanel::foundSettlementRequested);
+    layout->addWidget(m_foundSettlementBtn);
+
     layout->addStretch();
 
     m_endTurnBtn = new QPushButton(QStringLiteral("Конец хода"), this);
     connect(m_endTurnBtn, &QPushButton::clicked, this, &TurnPanel::endTurnClicked);
     layout->addWidget(m_endTurnBtn);
+}
+
+void TurnPanel::updateSettlementList(const std::vector<Settlement>& settlements, const Coords& selectedAnchor) {
+    m_settlementList->clear();
+    int cityNumber = 0;
+    for (const auto& s : settlements) {
+        ++cityNumber;
+        Coords anchor = s.anchorCoords();
+        QString text = QStringLiteral("Город %1 (%2, %3) — нас. %4")
+            .arg(cityNumber)
+            .arg(anchor.q).arg(anchor.r)
+            .arg(s.populationCount());
+        auto* item = new QListWidgetItem(text, m_settlementList);
+        item->setData(Qt::UserRole, anchor.q);
+        item->setData(Qt::UserRole + 1, anchor.r);
+        if (anchor.q == selectedAnchor.q && anchor.r == selectedAnchor.r) {
+            QFont f = item->font();
+            f.setBold(true);
+            item->setFont(f);
+            m_settlementList->setCurrentItem(item);
+        }
+    }
 }
 
 void TurnPanel::updateArmyList(const std::vector<Army>& armies) {
@@ -62,6 +100,10 @@ void TurnPanel::updateArmyList(const std::vector<Army>& armies) {
         auto* item = new QListWidgetItem(text, m_armyList);
         item->setData(Qt::UserRole, QString::fromStdString(a.getId()));
     }
+}
+
+void TurnPanel::setFoundSettlementAvailable(bool available) {
+    m_foundSettlementBtn->setVisible(available);
 }
 
 void TurnPanel::updateInfo(int turnNumber, const std::string& phase,

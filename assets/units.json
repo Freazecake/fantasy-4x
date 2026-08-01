@@ -41,6 +41,21 @@
             "requiredBuildingId": "barracks",
             "recruitCost": 28,
             "populationCost": 50
+        },
+        {
+            "id": "settler",
+            "name": "Поселенец",
+            "stats": {
+                "health": 10.0,
+                "attack": 0.0,
+                "defense": 1.0,
+                "movementPoints": 2
+            },
+            "tier": 0,
+            "requiredBuildingId": "",
+            "recruitCost": 60,
+            "populationCost": 80,
+            "isSettler": true
         }
     ]
 }

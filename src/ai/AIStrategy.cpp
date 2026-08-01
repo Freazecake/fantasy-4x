@@ -135,6 +135,26 @@ float AIStrategy::scoreRecruitUnit(const Settlement &s, const Unit &u, GlobalPha
     if (u.getPopulationCost() > s.allocation().idle)
         return -1.0f;
 
+    if (u.isSettler())
+    {
+        float desire;
+        switch (phase)
+        {
+        case GlobalPhase::NotStarted:
+            desire = 1.5f;
+            break;
+        case GlobalPhase::Phase2_OpenMap:
+            desire = 1.2f;
+            break;
+        case GlobalPhase::Phase3_Final:
+        default:
+            desire = 0.3f;
+            break;
+        }
+        int cost = std::max(1, u.getRecruitCost());
+        return (desire * 20.0f) / static_cast<float>(cost);
+    }
+
     const auto &stats = u.getStats();
     float power = stats.attack + stats.defense + stats.health * 0.1f;
 
@@ -204,17 +224,6 @@ float AIStrategy::scorePoliticalAction(const Player &p, const PoliticalAction &a
         break;
     }
 
-    // ВАЖНО: раньше здесь было `base * phaseWeight / cost`. Деление на cost
-    // превращало это в "эффективность на очко потраченной дипломатии", что
-    // уместно для повторяемых, дешёвых обменов (как TradeMarket), но не для
-    // редких стратегических решений вроде Conquest/Vassalize. Conquest стоит
-    // 300, Alliance — 50 (см. assets/political_actions.json): при делении на
-    // cost Conquest против ЛЮБОЙ, даже предельно слабой цели (base=3.0)
-    // проигрывал Alliance (3.0/300=0.01 < 1.0/50=0.02) — ИИ математически не
-    // мог выбрать ничего, кроме Alliance, пока хватало очков на неё. Отсюда
-    // и наблюдаемое поведение "все заключили союз и больше ничего не
-    // происходит". Без деления на cost базовые веса действительно определяют
-    // приоритет, как и задумывалось.
     return base * phaseWeightDiplomacy(phase);
 }
 
@@ -284,5 +293,7 @@ float AIStrategy::scoreExpand(const Army &mine, const Coords &candidateDestinati
         break;
     }
 
-    return reachPenalty * terrainBonus * phaseWeightMilitary(phase);
+    float resourceBonus = dest->getResource() != ResourceType::None ? 1.5f : 1.0f;
+
+    return reachPenalty * terrainBonus * resourceBonus * phaseWeightMilitary(phase);
 }

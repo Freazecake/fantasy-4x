@@ -42,6 +42,14 @@ struct MoveResult
     CombatResult combat;
 };
 
+struct FoundSettlementResult
+{
+    bool success = false;
+    std::string errorMessage;
+};
+
+inline constexpr int SETTLER_FOUNDED_INITIAL_POPULATION = 20;
+
 class GameState
 {
 private:
@@ -81,4 +89,10 @@ public:
     Army *findArmy(const std::string &id);
     MoveResult moveArmy(const std::string &armyId, const Coords &destination);
     CombatResult resolveMovementCombat(Army &attacker, const Coords &destination);
+
+    bool canFoundSettlementAt(const Coords &center) const;
+    FoundSettlementResult foundSettlementFromArmy(const std::string &armyId);
+
+private:
+    std::string settlementFoundingBlockReason(const Coords &center) const;
 };

@@ -476,3 +476,95 @@ MoveResult GameState::moveArmy(const std::string &armyId, const Coords &destinat
     result.success = true;
     return result;
 }
+
+std::string GameState::settlementFoundingBlockReason(const Coords &center) const
+{
+    const Tile *centerTile = m_map.tileAt(center.q, center.r);
+    if (!centerTile)
+        return "Клетка за пределами карты";
+    if (centerTile->getType() == TileType::Water)
+        return "Нельзя основать город на воде";
+
+    for (int dx = -1; dx <= 1; ++dx)
+    {
+        for (int dy = -1; dy <= 1; ++dy)
+        {
+            int q = center.q + dx, r = center.r + dy;
+            const Tile *t = m_map.tileAt(q, r);
+            if (!t)
+                continue; // за краем карты — просто не войдёт в площадку города
+
+            for (const auto &p : m_players)
+            {
+                for (const auto &s : p.settlements())
+                {
+                    for (const auto &st : s.tiles())
+                    {
+                        Coords c = st.getCoords();
+                        if (c.q == q && c.r == r)
+                            return "Клетка уже занята другим поселением";
+                    }
+                }
+            }
+        }
+    }
+
+    return "";
+}
+
+bool GameState::canFoundSettlementAt(const Coords &center) const
+{
+    return settlementFoundingBlockReason(center).empty();
+}
+
+FoundSettlementResult GameState::foundSettlementFromArmy(const std::string &armyId)
+{
+    FoundSettlementResult result;
+
+    Army *army = findArmy(armyId);
+    if (!army || army->units().empty())
+    {
+        result.errorMessage = "Армия не найдена";
+        return result;
+    }
+
+    if (!army->isSettlerArmy())
+    {
+        result.errorMessage = "Основать город может только армия, состоящая из одного поселенца";
+        return result;
+    }
+
+    Player *owner = findPlayer(m_players, army->getOwnerId());
+    if (!owner)
+    {
+        result.errorMessage = "Владелец армии не найден";
+        return result;
+    }
+
+    Coords center = army->position();
+    std::string blockReason = settlementFoundingBlockReason(center);
+    if (!blockReason.empty())
+    {
+        result.errorMessage = blockReason;
+        return result;
+    }
+
+    Settlement founded(owner->id(), SettlementType::Village);
+    founded.seedInitialPopulation(SETTLER_FOUNDED_INITIAL_POPULATION);
+
+    for (int dx = -1; dx <= 1; ++dx)
+    {
+        for (int dy = -1; dy <= 1; ++dy)
+        {
+            int q = center.q + dx, r = center.r + dy;
+            if (m_map.tileAt(q, r))
+                founded.addTile(Tile(q, r));
+        }
+    }
+
+    owner->addSettlement(founded);
+    owner->removeArmy(armyId);
+
+    result.success = true;
+    return result;
+}

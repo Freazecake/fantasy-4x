@@ -25,6 +25,15 @@ public:
     const Coords &position() const { return m_position; }
     const std::vector<Unit> &units() const { return m_units; }
     bool isDestroyed() const { return m_units.empty(); }
+    bool isSettlerArmy() const
+    {
+        if (m_units.empty())
+            return false;
+        for (const auto &u : m_units)
+            if (!u.isSettler())
+                return false;
+        return true;
+    }
 
     int movementPointsMax() const;
     int movementPointsRemaining() const { return m_movementPointsRemaining; }
