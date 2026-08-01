@@ -575,3 +575,38 @@ TEST_CASE("AIController::takeTurn: 3 хода двух AI игроков")
 
     CHECK(state.turnNumber() == 3);
 }
+
+TEST_CASE("AIController::decideTradeExchange: реально обменивает торговлю на дефицитный ресурс")
+{
+    Player p;
+    p.setId(0);
+    p.setRace(makeRace("humans", 1, 1, 1, 1, 1, 1));
+
+    Resources r;
+    r.trade = 100.0f;
+    r.science = 0.0f;
+    r.industry = 0.0f;
+    r.diplomacy = 0.0f;
+    p.addResources(r);
+
+    float tradeBefore = p.resources().trade;
+    AIController::decideTradeExchange(p, GlobalPhase::Phase2_OpenMap);
+
+    CHECK(p.resources().trade < tradeBefore);
+    CHECK(p.resources().science + p.resources().industry + p.resources().diplomacy > 0.0f);
+}
+
+TEST_CASE("AIController::decideTradeExchange: не трогает торговлю, если её меньше единицы")
+{
+    Player p;
+    p.setId(0);
+    p.setRace(makeRace("humans", 1, 1, 1, 1, 1, 1));
+
+    Resources r;
+    r.trade = 0.5f;
+    p.addResources(r);
+
+    AIController::decideTradeExchange(p, GlobalPhase::Phase2_OpenMap);
+
+    CHECK_NEAR(p.resources().trade, 0.5f, 0.001f);
+}

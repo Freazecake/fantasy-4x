@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <tuple>
 
 namespace
 {
@@ -26,14 +27,10 @@ void AIController::takeTurn(Player &bot, GameState &state,
                             const std::vector<Unit> &unitCatalog,
                             const std::vector<PoliticalAction> &politicalActionCatalog)
 {
+    decideTradeExchange(bot, state.CurPhase());
     decideResearch(bot, techCatalog, state.CurPhase());
     for (auto &s : bot.settlements())
     {
-        // Порядок важен: decideAllocations всегда распределяет ВСЁ свободное
-        // население (idle) между гражданскими сферами без остатка (см. её
-        // реализацию — remaining всегда доходит до лучшей сферы). Если бы она
-        // шла первой, decideRecruitment после неё почти никогда не находила
-        // бы свободных людей и юниты бы фактически никогда не нанимались.
         decideRecruitment(s, unitCatalog, state.CurPhase());
         decideConstruction(s, buildingCatalog, state.CurPhase());
         decideAllocations(s, state.CurPhase());
@@ -113,6 +110,34 @@ void AIController::decideResearch(Player &p, const std::vector<Technology> &cata
 
     if (!sc.empty() && sc[0].first > 0.0f)
         p.setCurrentResearch(sc[0].second->getId());
+}
+
+void AIController::decideTradeExchange(Player &p, GlobalPhase phase)
+{
+    static const std::vector<std::string> targets = {"science", "industry", "diplomacy"};
+
+    const std::string *best = nullptr;
+    float bestScore = 0.0f;
+    for (const auto &target : targets)
+    {
+        float score = AIStrategy::scoreTradeExchange(p, target, phase);
+        if (score > bestScore)
+        {
+            bestScore = score;
+            best = &target;
+        }
+    }
+
+    if (!best)
+        return;
+
+    // Тратим большую часть накопленной торговли, но не всю — оставляем
+    // небольшой запас, чтобы бот не оголял торговлю подчистую за один ход.
+    int tradeToSpend = static_cast<int>(p.resources().trade * 0.8f);
+    if (tradeToSpend < 1)
+        return;
+
+    p.exchangeTrade(*best, tradeToSpend);
 }
 
 void AIController::decideRecruitment(Settlement &s, const std::vector<Unit> &catalog, GlobalPhase phase)

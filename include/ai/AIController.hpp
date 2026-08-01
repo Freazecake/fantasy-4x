@@ -17,4 +17,5 @@ public:
     static void decideRecruitment(Settlement &s, const std::vector<Unit> &catalog, GlobalPhase phase);
     static void decidePoliticalAction(Player &p, const std::vector<PoliticalAction> &catalog, GameState &state);
     static void decideMilitaryActions(Player &p, GameState &state, GlobalPhase phase);
+    static void decideTradeExchange(Player &p, GlobalPhase phase);
 };
