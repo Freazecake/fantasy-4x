@@ -27,6 +27,46 @@ void GameState::nextTurn()
     ++m_turnNumber;
 }
 
+bool GameState::updatePhase()
+{
+    if (m_globalPhase == GlobalPhase::NotStarted)
+    {
+        bool someoneHasSecondSettlement = false;
+        for (const auto &p : m_players)
+        {
+            if (p.settlements().size() >= 2)
+            {
+                someoneHasSecondSettlement = true;
+                break;
+            }
+        }
+
+        if (someoneHasSecondSettlement || m_turnNumber >= PHASE2_TURN_THRESHOLD)
+        {
+            nextPhase();
+            return true;
+        }
+        return false;
+    }
+
+    if (m_globalPhase == GlobalPhase::Phase2_OpenMap)
+    {
+        int aliveCount = 0;
+        for (const auto &p : m_players)
+            if (!p.settlements().empty())
+                ++aliveCount;
+
+        if (aliveCount <= PHASE3_MAX_ALIVE_PLAYERS || m_turnNumber >= PHASE3_TURN_THRESHOLD)
+        {
+            nextPhase();
+            return true;
+        }
+        return false;
+    }
+
+    return false;
+}
+
 bool GameState::isAllied(const GameState &state, int a, int b)
 {
     if (a == b)

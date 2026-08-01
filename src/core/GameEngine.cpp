@@ -222,5 +222,6 @@ void GameEngine::endTurn()
         for (auto &army : player.armies())
             army.resetMovement();
 
+    m_state.updatePhase();
     m_state.nextTurn();
 }

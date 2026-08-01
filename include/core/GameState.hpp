@@ -16,6 +16,10 @@ enum class GlobalPhase
     Phase3_Final,
 };
 
+inline constexpr int PHASE2_TURN_THRESHOLD = 20;
+inline constexpr int PHASE3_TURN_THRESHOLD = 50;
+inline constexpr int PHASE3_MAX_ALIVE_PLAYERS = 3;
+
 struct ActiveAlliance
 {
     int playerA, playerB;
@@ -63,6 +67,7 @@ public:
     void setMap(const Map &map);
     void nextPhase() { m_globalPhase = static_cast<GlobalPhase>(static_cast<int>(m_globalPhase) + 1); }
     void nextTurn();
+    bool updatePhase();
 
     static bool isAllied(const GameState &state, int a, int b);
     void checkAlliances();

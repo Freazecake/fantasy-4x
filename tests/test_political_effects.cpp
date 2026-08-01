@@ -424,3 +424,100 @@ TEST_CASE("GameState::checkVictory: military — 1 живой из 2 → поб�
     CHECK(v.winnerId == 0);
     CHECK(v.type == "military");
 }
+
+// --- GameState::updatePhase ---
+
+TEST_CASE("GameState::updatePhase: остаётся NotStarted, если нет второго поселения и мало ходов")
+{
+    GameState state;
+    Player p;
+    p.setId(0);
+    Settlement s(0, SettlementType::Village);
+    s.seedInitialPopulation(10);
+    p.addSettlement(s);
+    state.addPlayer(p);
+
+    CHECK(!state.updatePhase());
+    CHECK(state.CurPhase() == GlobalPhase::NotStarted);
+}
+
+TEST_CASE("GameState::updatePhase: переходит в Phase2_OpenMap при основании второго поселения")
+{
+    GameState state;
+    Player p;
+    p.setId(0);
+    Settlement s1(0, SettlementType::Village);
+    s1.seedInitialPopulation(10);
+    p.addSettlement(s1);
+    Settlement s2(0, SettlementType::Village);
+    s2.seedInitialPopulation(10);
+    p.addSettlement(s2);
+    state.addPlayer(p);
+
+    CHECK(state.updatePhase());
+    CHECK(state.CurPhase() == GlobalPhase::Phase2_OpenMap);
+}
+
+TEST_CASE("GameState::updatePhase: переходит в Phase2_OpenMap по истечении порога ходов")
+{
+    GameState state;
+    Player p;
+    p.setId(0);
+    Settlement s(0, SettlementType::Village);
+    s.seedInitialPopulation(10);
+    p.addSettlement(s);
+    state.addPlayer(p);
+
+    for (int i = 0; i < PHASE2_TURN_THRESHOLD; ++i)
+        state.nextTurn();
+
+    CHECK(state.updatePhase());
+    CHECK(state.CurPhase() == GlobalPhase::Phase2_OpenMap);
+}
+
+TEST_CASE("GameState::updatePhase: переходит в Phase3_Final, когда живых игроков мало")
+{
+    GameState state;
+
+    // Первый игрок жив и уже основал второе поселение (переводит игру в Phase2),
+    // остальные два — без поселений (выбыли).
+    Player alive;
+    alive.setId(0);
+    Settlement s1(0, SettlementType::Village);
+    s1.seedInitialPopulation(10);
+    alive.addSettlement(s1);
+    Settlement s2(0, SettlementType::Village);
+    s2.seedInitialPopulation(10);
+    alive.addSettlement(s2);
+    state.addPlayer(alive);
+
+    for (int id : {1, 2})
+    {
+        Player dead;
+        dead.setId(id);
+        state.addPlayer(dead);
+    }
+
+    CHECK(state.updatePhase()); // NotStarted -> Phase2_OpenMap (второе поселение уже основано)
+    CHECK(state.CurPhase() == GlobalPhase::Phase2_OpenMap);
+    CHECK(state.updatePhase()); // Phase2_OpenMap -> Phase3_Final (живых <= PHASE3_MAX_ALIVE_PLAYERS)
+    CHECK(state.CurPhase() == GlobalPhase::Phase3_Final);
+}
+
+TEST_CASE("GameState::updatePhase: не откатывает фазу назад и не двигается дальше Phase3_Final")
+{
+    GameState state;
+    Player p;
+    p.setId(0);
+    Settlement s(0, SettlementType::Village);
+    s.seedInitialPopulation(10);
+    p.addSettlement(s);
+    state.addPlayer(p);
+
+    state.nextPhase();
+    state.nextPhase();
+    CHECK(state.CurPhase() == GlobalPhase::Phase3_Final);
+
+    CHECK(!state.updatePhase());
+    CHECK(state.CurPhase() == GlobalPhase::Phase3_Final);
+}
