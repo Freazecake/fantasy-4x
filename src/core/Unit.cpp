@@ -19,6 +19,7 @@ Unit Unit::loadFromJson(const json &obj)
     u.m_requiredBuildingId = obj["requiredBuildingId"].get<std::string>();
     u.m_recruitCost = obj["recruitCost"].get<int>();
     u.m_populationCost = obj["populationCost"].get<int>();
+    u.m_isSettler = obj.value("isSettler", false);
 
     return u;
 }

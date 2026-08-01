@@ -134,6 +134,8 @@ QWidget *MainWindow::buildGameView()
 
     connect(m_turnPanel, &TurnPanel::endTurnClicked, this, &MainWindow::onEndTurn);
     connect(m_turnPanel, &TurnPanel::armySelected, this, &MainWindow::onArmySelected);
+    connect(m_turnPanel, &TurnPanel::settlementSelected, this, &MainWindow::onSettlementListSelected);
+    connect(m_turnPanel, &TurnPanel::foundSettlementRequested, this, &MainWindow::onFoundSettlementRequested);
     connect(m_mapView, &MapView::tileClicked, this, &MainWindow::onTileClicked);
     connect(m_mapView, &MapView::tileHovered, this, &MainWindow::onTileHovered);
     connect(m_mapView, &MapView::armySelected, this, &MainWindow::onArmySelected);
@@ -201,9 +203,42 @@ QWidget *MainWindow::buildGameView()
     return centralSplitter;
 }
 
+Settlement *MainWindow::selectedHumanSettlement(Player &human)
+{
+    if (human.settlements().empty())
+    {
+        m_hasSelectedSettlement = false;
+        return nullptr;
+    }
+
+    if (m_hasSelectedSettlement)
+    {
+        for (auto &s : human.settlements())
+        {
+            Coords a = s.anchorCoords();
+            if (a.q == m_selectedSettlementAnchor.q && a.r == m_selectedSettlementAnchor.r)
+                return &s;
+        }
+    }
+
+    // Выбранное поселение не найдено (ещё не выбирали, или было потеряно) —
+    // переключаемся на первое оставшееся своё поселение.
+    Settlement &fallback = human.settlements().front();
+    m_selectedSettlementAnchor = fallback.anchorCoords();
+    m_hasSelectedSettlement = true;
+    return &fallback;
+}
+
+void MainWindow::selectSettlement(const Settlement &settlement)
+{
+    m_selectedSettlementAnchor = settlement.anchorCoords();
+    m_hasSelectedSettlement = true;
+}
+
 void MainWindow::onNewGame()
 {
     m_engine.loadFromAssets(ASSETS_DIR);
+    m_hasSelectedSettlement = false;
     refreshAllPanels();
     m_stack->setCurrentIndex(1);
     statusBar()->showMessage(QStringLiteral("Партия начата"), 3000);
@@ -260,11 +295,13 @@ void MainWindow::refreshAllPanels()
     m_mapView->renderMap(m_engine.state().map(), settlementTiles, allPlayersArmies, human.id(), relations);
     m_turnPanel->updateArmyList(human.armies());
 
-    if (!human.settlements().empty())
+    Settlement *selected = selectedHumanSettlement(human);
+    if (selected)
     {
         m_settlementPanel->showSettlement(
-            human.settlements()[0], m_engine.buildingCatalog(), m_engine.unitCatalog());
+            *selected, m_engine.buildingCatalog(), m_engine.unitCatalog());
     }
+    m_turnPanel->updateSettlementList(human.settlements(), m_selectedSettlementAnchor);
 
     m_techTreePanel->showTechs(
         human.technologies(),
@@ -318,7 +355,9 @@ void MainWindow::onTileClicked(int q, int r)
             auto c = tile.getCoords();
             if (c.q == q && c.r == r)
             {
+                selectSettlement(settlement);
                 m_settlementPanel->showSettlement(settlement, m_engine.buildingCatalog(), m_engine.unitCatalog());
+                m_turnPanel->updateSettlementList(human.settlements(), m_selectedSettlementAnchor);
                 statusBar()->showMessage(QStringLiteral("Поселение"), 5000);
                 return;
             }
@@ -339,7 +378,9 @@ void MainWindow::onArmySelected(const std::string &armyId)
     if (!army)
         return;
 
+    m_selectedArmyId = armyId;
     m_mapView->setSelectedArmy(armyId);
+    m_turnPanel->setFoundSettlementAvailable(army->isSettlerArmy());
 
     auto reachable = m_engine.state().map().reachableTiles(
         army->position(), army->movementPointsRemaining());
@@ -354,6 +395,26 @@ void MainWindow::onArmySelected(const std::string &armyId)
             .arg(army->movementPointsRemaining())
             .arg(army->movementPointsMax()),
         5000);
+}
+
+void MainWindow::onFoundSettlementRequested()
+{
+    if (m_selectedArmyId.empty())
+        return;
+
+    auto result = m_engine.state().foundSettlementFromArmy(m_selectedArmyId);
+    statusBar()->showMessage(QString::fromStdString(
+        result.success ? std::string("Город основан!") : result.errorMessage), 5000);
+
+    if (result.success)
+    {
+        m_selectedArmyId.clear();
+        m_hasSelectedSettlement = false; // выбираем новый город в refreshAllPanels
+        m_mapView->clearSelection();
+        m_turnPanel->setFoundSettlementAvailable(false);
+    }
+
+    refreshAllPanels();
 }
 
 void MainWindow::onArmyMoveRequested(const std::string &armyId, int q, int r)
@@ -379,11 +440,30 @@ void MainWindow::onArmyMoveRequested(const std::string &armyId, int q, int r)
 
     refreshAllPanels();
     m_mapView->clearSelection();
+    m_selectedArmyId.clear();
+    m_turnPanel->setFoundSettlementAvailable(false);
+}
+
+void MainWindow::onSettlementListSelected(int q, int r)
+{
+    Player &human = m_engine.state().players()[0];
+    for (auto &settlement : human.settlements())
+    {
+        if (settlement.anchorCoords().q == q && settlement.anchorCoords().r == r)
+        {
+            selectSettlement(settlement);
+            m_settlementPanel->showSettlement(settlement, m_engine.buildingCatalog(), m_engine.unitCatalog());
+            m_turnPanel->updateSettlementList(human.settlements(), m_selectedSettlementAnchor);
+            return;
+        }
+    }
 }
 
 void MainWindow::onSelectionCleared()
 {
     m_mapView->clearSelection();
+    m_selectedArmyId.clear();
+    m_turnPanel->setFoundSettlementAvailable(false);
     statusBar()->clearMessage();
 }
 

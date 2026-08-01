@@ -36,6 +36,7 @@ void AIController::takeTurn(Player &bot, GameState &state,
         decideAllocations(s, state.CurPhase());
     }
     decideMilitaryActions(bot, state, state.CurPhase());
+    decideSettlerActions(bot, state, state.CurPhase());
     decidePoliticalAction(bot, politicalActionCatalog, state);
 }
 
@@ -131,8 +132,6 @@ void AIController::decideTradeExchange(Player &p, GlobalPhase phase)
     if (!best)
         return;
 
-    // Тратим большую часть накопленной торговли, но не всю — оставляем
-    // небольшой запас, чтобы бот не оголял торговлю подчистую за один ход.
     int tradeToSpend = static_cast<int>(p.resources().trade * 0.8f);
     if (tradeToSpend < 1)
         return;
@@ -231,6 +230,11 @@ void AIController::decideMilitaryActions(Player &p, GameState &state, GlobalPhas
         if (!mine || mine->units().empty())
             continue;
 
+        // Армии-поселенцы не воюют и не "гуляют" ради терраформинга — ими
+        // отдельно управляет decideSettlerActions.
+        if (mine->isSettlerArmy())
+            continue;
+
         if (mine->movementPointsRemaining() <= 0)
             continue;
 
@@ -292,6 +296,73 @@ void AIController::decideMilitaryActions(Player &p, GameState &state, GlobalPhas
         for (const auto &dest : state.map().reachableTiles(mine->position(), mine->movementPointsRemaining()))
         {
             if (isOccupied(dest))
+                continue;
+
+            float score = AIStrategy::scoreExpand(*mine, dest, phase, state.map());
+            candidates.push_back({dest, score});
+        }
+
+        if (candidates.empty())
+            continue;
+
+        auto best = std::max_element(candidates.begin(), candidates.end(),
+                                     [](const Candidate &a, const Candidate &b)
+                                     { return a.score < b.score; });
+
+        if (best->score <= 0.0f)
+            continue;
+
+        state.moveArmy(armyId, best->destination);
+    }
+}
+
+void AIController::decideSettlerActions(Player &p, GameState &state, GlobalPhase phase)
+{
+    std::vector<std::string> settlerArmyIds;
+    for (const auto &a : p.armies())
+        if (a.isSettlerArmy())
+            settlerArmyIds.push_back(a.getId());
+
+    for (const auto &armyId : settlerArmyIds)
+    {
+        Army *mine = state.findArmy(armyId);
+        if (!mine)
+            continue;
+
+        // Уже стоим на подходящей клетке — основываем город немедленно,
+        // не тратя ход на бессмысленное перемещение.
+        if (state.canFoundSettlementAt(mine->position()))
+        {
+            state.foundSettlementFromArmy(armyId);
+            continue;
+        }
+
+        if (mine->movementPointsRemaining() <= 0)
+            continue;
+
+        std::vector<Coords> occupied;
+        for (const auto &pl : state.players())
+        {
+            for (const auto &s : pl.settlements())
+                for (const auto &t : s.tiles())
+                    occupied.push_back(t.getCoords());
+            for (const auto &ar : pl.armies())
+                occupied.push_back(ar.position());
+        }
+        auto isOccupied = [&occupied](const Coords &c)
+        {
+            for (const auto &o : occupied)
+                if (o.q == c.q && o.r == c.r)
+                    return true;
+            return false;
+        };
+
+        std::vector<Candidate> candidates;
+        for (const auto &dest : state.map().reachableTiles(mine->position(), mine->movementPointsRemaining()))
+        {
+            if (isOccupied(dest))
+                continue;
+            if (!state.canFoundSettlementAt(dest))
                 continue;
 
             float score = AIStrategy::scoreExpand(*mine, dest, phase, state.map());

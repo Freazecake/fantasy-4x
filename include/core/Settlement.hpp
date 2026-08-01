@@ -112,13 +112,20 @@ public:
     const PopulationAllocation &allocation() const { return m_population; }
     const std::vector<Tile> &tiles() const { return m_tiles; }
 
+    // Стабильный "якорь" поселения для целей выбора в GUI: сами Settlement
+    // не хранят id, а порядок m_tiles не гарантирован (первая добавленная
+    // клетка — не обязательно центр). Минимальная по (q, затем r) координата
+    // среди тайлов остаётся неизменной, пока у поселения не меняется набор
+    // клеток, и не совпадает с якорем никакого другого поселения на карте.
+    Coords anchorCoords() const;
+
     void setType(SettlementType type) { m_type = type; }
     void setOwnerId(int ownerId) { m_ownerId = ownerId; }
 
     void addTile(const Tile &tile);
 
     void seedInitialPopulation(int amount);
-    void growPopulation(float baseGrowthRate, float raceGrowthModifier);
+    void growPopulation(float baseGrowthRate, float raceGrowthModifier, int extraFlatGrowth = 0);
     void reallocate(Sphere from, Sphere to, int amount);
     void assignFromIdle(Sphere sphere, int amount);
     void unassignToIdle(Sphere sphere, int amount);

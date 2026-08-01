@@ -135,6 +135,30 @@ float AIStrategy::scoreRecruitUnit(const Settlement &s, const Unit &u, GlobalPha
     if (u.getPopulationCost() > s.allocation().idle)
         return -1.0f;
 
+    if (u.isSettler())
+    {
+        // Поселенца оцениваем не боевой силой (у него её почти нет), а
+        // желанием расширяться: высоким на старте и в открытой фазе, когда
+        // на карте ещё много свободной земли, и низким в финале, когда
+        // новый город уже вряд ли успеет окупиться.
+        float desire;
+        switch (phase)
+        {
+        case GlobalPhase::NotStarted:
+            desire = 1.5f;
+            break;
+        case GlobalPhase::Phase2_OpenMap:
+            desire = 1.2f;
+            break;
+        case GlobalPhase::Phase3_Final:
+        default:
+            desire = 0.3f;
+            break;
+        }
+        int cost = std::max(1, u.getRecruitCost());
+        return (desire * 20.0f) / static_cast<float>(cost);
+    }
+
     const auto &stats = u.getStats();
     float power = stats.attack + stats.defense + stats.health * 0.1f;
 
@@ -284,5 +308,10 @@ float AIStrategy::scoreExpand(const Army &mine, const Coords &candidateDestinati
         break;
     }
 
-    return reachPenalty * terrainBonus * phaseWeightMilitary(phase);
+    // Ресурсная клетка — более привлекательная цель для расширения: её
+    // владелец получит прибавку к доходу/росту (см. Economy::computeSettlementIncome,
+    // GameEngine::endTurn), поэтому ИИ должен тянуться к таким клеткам.
+    float resourceBonus = dest->getResource() != ResourceType::None ? 1.5f : 1.0f;
+
+    return reachPenalty * terrainBonus * resourceBonus * phaseWeightMilitary(phase);
 }

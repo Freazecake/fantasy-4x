@@ -18,4 +18,7 @@ public:
     static void decidePoliticalAction(Player &p, const std::vector<PoliticalAction> &catalog, GameState &state);
     static void decideMilitaryActions(Player &p, GameState &state, GlobalPhase phase);
     static void decideTradeExchange(Player &p, GlobalPhase phase);
+    // Ведёт армии-поселенцы: основывает город прямо на месте, если клетка
+    // годится, иначе идёт к лучшей достижимой в этот ход свободной клетке.
+    static void decideSettlerActions(Player &p, GameState &state, GlobalPhase phase);
 };

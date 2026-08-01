@@ -20,6 +20,7 @@ private:
     int m_populationCost = 0;
     float m_currentHealth = 0.0f;
     bool m_trained = false;
+    bool m_isSettler = false;
 
 public:
     Unit() = default;
@@ -46,6 +47,7 @@ public:
     void setTrained(bool trained) { m_trained = trained; }
 
     bool requiresBuilding() const { return !m_requiredBuildingId.empty(); }
+    bool isSettler() const { return m_isSettler; }
 
     std::string toString() const;
 };
