@@ -78,14 +78,14 @@ void Player::spendIndustryOnQueues(Settlement &settlement)
         m_economy.addResource("industry", leftover);
 }
 
-void Player::advanceTurn()
+void Player::advanceTurn(const std::vector<ResourceDef> &resourceCatalog)
 {
     Resources totalIncome;
 
     for (auto &settlement : m_settlements)
     {
         Resources income = Economy::computeSettlementIncome(
-            settlement, m_race.getModifiers(), settlement.builtBuildings(), m_heroes);
+            settlement, m_race.getModifiers(), settlement.builtBuildings(), m_heroes, resourceCatalog);
 
         int currentIndustry = static_cast<int>(income.industry);
 

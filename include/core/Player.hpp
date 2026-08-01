@@ -86,7 +86,7 @@ public:
     int investScience(int points);
 
     void spendIndustryOnQueues(Settlement &settlement);
-    void advanceTurn();
+    void advanceTurn(const std::vector<ResourceDef> &resourceCatalog = {});
 
     Resources takeFractionFromEconomy(float fraction);
     void addResources(const Resources &res);

@@ -163,3 +163,59 @@ TEST_CASE("Economy::addResource с неизвестным типом броса�
     Economy economy;
     CHECK_THROWS(economy.addResource("magic", 5));
 }
+
+TEST_CASE("Economy::computeSettlementIncome: ресурсная клетка добавляет фиксированный бонус к сфере") {
+    Settlement s(1, SettlementType::Village);
+    s.addTile(Tile(0, 0));
+    Tile scienceTile(1, 0);
+    scienceTile.setResource(ResourceType::Science);
+    s.addTile(scienceTile);
+    s.seedInitialPopulation(100);
+    s.assignFromIdle(Sphere::Science, 30);
+
+    ResourceDef scienceDef;
+    scienceDef.type = ResourceType::Science;
+    scienceDef.sphere = "science";
+    scienceDef.bonus = 6.0f;
+    std::vector<ResourceDef> catalog = {scienceDef};
+
+    Modifiers raceMods; // всё 1.0
+
+    Resources income = Economy::computeSettlementIncome(s, raceMods, {}, {}, catalog);
+
+    // 30 (население в науке) * 1.0 (раса) + 6 (бонус клетки, не масштабируется)
+    CHECK_NEAR(income.science, 36.0f, 0.01f);
+}
+
+TEST_CASE("Economy::computeSettlementIncome: без каталога ресурс клетки не даёт бонуса (обратная совместимость)") {
+    Settlement s(1, SettlementType::Village);
+    Tile scienceTile(0, 0);
+    scienceTile.setResource(ResourceType::Science);
+    s.addTile(scienceTile);
+    s.seedInitialPopulation(100);
+    s.assignFromIdle(Sphere::Science, 30);
+
+    Modifiers raceMods;
+    Resources income = Economy::computeSettlementIncome(s, raceMods, {}, {}); // каталог не передан
+
+    CHECK_NEAR(income.science, 30.0f, 0.01f);
+}
+
+TEST_CASE("Economy::computeSettlementIncome: ресурс сферы growth не идёт в income.growth (обрабатывается отдельно)") {
+    Settlement s(1, SettlementType::Village);
+    Tile foodTile(0, 0);
+    foodTile.setResource(ResourceType::Food);
+    s.addTile(foodTile);
+    s.seedInitialPopulation(100);
+
+    ResourceDef foodDef;
+    foodDef.type = ResourceType::Food;
+    foodDef.sphere = "growth";
+    foodDef.bonus = 6.0f;
+    std::vector<ResourceDef> catalog = {foodDef};
+
+    Modifiers raceMods;
+    Resources income = Economy::computeSettlementIncome(s, raceMods, {}, {}, catalog);
+
+    CHECK_NEAR(income.growth, 0.0f, 0.01f);
+}

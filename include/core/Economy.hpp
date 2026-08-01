@@ -7,6 +7,7 @@
 #include "Building.hpp"
 #include "Hero.hpp"
 #include "Common.hpp"
+#include "ResourceCatalog.hpp"
 
 struct Resources
 {
@@ -42,7 +43,8 @@ public:
     static Resources computeSettlementIncome(const Settlement &settlement,
                                              const Modifiers &raceModifiers,
                                              const std::vector<Building> &builtBuildings,
-                                             const std::vector<Hero> &heroes);
+                                             const std::vector<Hero> &heroes,
+                                             const std::vector<ResourceDef> &resourceCatalog = {});
 
     void accumulate(const Resources &);
     const Resources &totals() const { return m_res; }

@@ -8,6 +8,7 @@
 #include "Technology.hpp"
 #include "Unit.hpp"
 #include "PoliticalAction.hpp"
+#include "ResourceCatalog.hpp"
 #include "ai/AIController.hpp"
 
 class GameEngine
@@ -18,6 +19,7 @@ private:
     std::vector<Technology> m_techCatalog;
     std::vector<Unit> m_unitCatalog;
     std::vector<PoliticalAction> m_politicalActionCatalog;
+    std::vector<ResourceDef> m_resourceCatalog;
 
 public:
     bool loadFromAssets(const std::string &assetsDir);
@@ -32,4 +34,5 @@ public:
     const std::vector<Technology> &techCatalog() const { return m_techCatalog; }
     const std::vector<Unit> &unitCatalog() const { return m_unitCatalog; }
     const std::vector<PoliticalAction> &politicalActionCatalog() const { return m_politicalActionCatalog; }
+    const std::vector<ResourceDef> &resourceCatalog() const { return m_resourceCatalog; }
 };

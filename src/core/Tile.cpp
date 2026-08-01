@@ -39,6 +39,7 @@ Tile::Tile(const Tile &other)
     coords.q = other.coords.q;
     coords.r = other.coords.r;
     type = other.type;
+    resource = other.resource;
 }
 
 int Tile::movementCost() const

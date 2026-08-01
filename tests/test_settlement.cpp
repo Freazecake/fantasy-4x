@@ -117,6 +117,25 @@ TEST_CASE("Settlement::growPopulation с нулевым населением н�
     CHECK(s.populationCount() == 0);
 }
 
+TEST_CASE("Settlement::growPopulation: extraFlatGrowth (бонус ресурса еды) добавляется поверх процентного роста") {
+    Settlement s(1, SettlementType::Village);
+    s.seedInitialPopulation(100);
+
+    // Процентный прирост: 100 * 0.1 * 1.5 = 15, плюс фиксированный бонус еды 6
+    s.growPopulation(0.1f, 1.5f, 6);
+
+    CHECK(s.populationCount() == 121);
+    CHECK(s.allocation().idle == 121);
+}
+
+TEST_CASE("Settlement::growPopulation: extraFlatGrowth работает даже при нулевом населении") {
+    Settlement s(1, SettlementType::Village);
+
+    s.growPopulation(0.1f, 1.5f, 6);
+
+    CHECK(s.populationCount() == 6);
+}
+
 TEST_CASE("Settlement::growPopulation не уходит в отрицательный прирост даже при "
           "странных входных данных") {
     Settlement s(1, SettlementType::Village);
@@ -168,4 +187,38 @@ TEST_CASE("PopulationAllocation::get/set работают согласованн
     CHECK(alloc.get(Sphere::Trade) == 3);
     CHECK(alloc.get(Sphere::Diplomacy) == 4);
     CHECK(alloc.total() == 10);  // idle остался 0
+}
+
+TEST_CASE("Settlement::anchorCoords: минимальная координата по (q, затем r) среди тайлов") {
+    Settlement s(0, SettlementType::Village);
+    s.addTile(Tile(5, 5));
+    s.addTile(Tile(4, 9));
+    s.addTile(Tile(4, 2));
+    s.addTile(Tile(6, 0));
+
+    Coords anchor = s.anchorCoords();
+    CHECK(anchor.q == 4);
+    CHECK(anchor.r == 2);
+}
+
+TEST_CASE("Settlement::anchorCoords: не зависит от порядка добавления тайлов") {
+    Settlement a(0, SettlementType::Village);
+    a.addTile(Tile(1, 1));
+    a.addTile(Tile(0, 0));
+    a.addTile(Tile(2, 2));
+
+    Settlement b(0, SettlementType::Village);
+    b.addTile(Tile(2, 2));
+    b.addTile(Tile(0, 0));
+    b.addTile(Tile(1, 1));
+
+    CHECK(a.anchorCoords().q == b.anchorCoords().q);
+    CHECK(a.anchorCoords().r == b.anchorCoords().r);
+}
+
+TEST_CASE("Settlement::anchorCoords: (-1, -1) для поселения без тайлов") {
+    Settlement s(0, SettlementType::Village);
+    Coords anchor = s.anchorCoords();
+    CHECK(anchor.q == -1);
+    CHECK(anchor.r == -1);
 }

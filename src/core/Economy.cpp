@@ -105,7 +105,8 @@ Economy::Economy(const Economy &other) : m_res(other.m_res) {}
 Resources Economy::computeSettlementIncome(const Settlement &settlement,
                                            const Modifiers &raceModifiers,
                                            const std::vector<Building> &builtBuildings,
-                                           const std::vector<Hero> &heroes)
+                                           const std::vector<Hero> &heroes,
+                                           const std::vector<ResourceDef> &resourceCatalog)
 {
     Resources income;
     income.science = static_cast<float>(settlement.allocation().science);
@@ -122,6 +123,25 @@ Resources Economy::computeSettlementIncome(const Settlement &settlement,
 
     for (const auto &hero : heroes)
         income = income * hero.getModifiers();
+
+    for (const auto &tile : settlement.tiles())
+    {
+        if (tile.getResource() == ResourceType::None)
+            continue;
+
+        const ResourceDef *def = ResourceCatalog::find(resourceCatalog, tile.getResource());
+        if (!def || def->sphere == "growth")
+            continue;
+
+        if (def->sphere == "science")
+            income.science += def->bonus;
+        else if (def->sphere == "industry")
+            income.industry += def->bonus;
+        else if (def->sphere == "trade")
+            income.trade += def->bonus;
+        else if (def->sphere == "diplomacy")
+            income.diplomacy += def->bonus;
+    }
 
     return income;
 }

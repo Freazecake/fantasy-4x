@@ -3,6 +3,7 @@
 #include <QResizeEvent>
 #include <QPen>
 #include <QPainter>
+#include <QFont>
 #include <QGraphicsPolygonItem>
 #include <cmath>
 #include <algorithm>
@@ -24,6 +25,60 @@ static const char *tileTypeName(TileType type)
         return "Лес";
     }
     return "Неизвестно";
+}
+
+static const char *resourceName(ResourceType type)
+{
+    switch (type)
+    {
+    case ResourceType::Food:
+        return "Еда";
+    case ResourceType::Production:
+        return "Ресурсы";
+    case ResourceType::Gold:
+        return "Золото";
+    case ResourceType::Science:
+        return "Наука";
+    case ResourceType::None:
+    default:
+        return nullptr;
+    }
+}
+
+static QColor resourceColor(ResourceType type)
+{
+    switch (type)
+    {
+    case ResourceType::Food:
+        return QColor(120, 200, 90);
+    case ResourceType::Production:
+        return QColor(200, 140, 70);
+    case ResourceType::Gold:
+        return QColor(230, 200, 60);
+    case ResourceType::Science:
+        return QColor(90, 170, 230);
+    case ResourceType::None:
+    default:
+        return QColor();
+    }
+}
+
+static QString resourceGlyph(ResourceType type)
+{
+    switch (type)
+    {
+    case ResourceType::Food:
+        return QStringLiteral("F");
+    case ResourceType::Production:
+        return QStringLiteral("P");
+    case ResourceType::Gold:
+        return QStringLiteral("G");
+    case ResourceType::Science:
+        return QStringLiteral("S");
+    case ResourceType::None:
+    default:
+        return QString();
+    }
 }
 
 static QColor tileColor(TileType type)
@@ -102,6 +157,7 @@ void MapView::renderMap(const Map &map,
     m_scene->clear();
     m_hexItems.clear();
     m_tileTypes.clear();
+    m_tileResources.clear();
     m_settlementOwners.clear();
     for (const auto &marker : settlementTiles)
         m_settlementOwners[{marker.q, marker.r}] = marker.ownerId;
@@ -126,6 +182,21 @@ void MapView::renderMap(const Map &map,
 
         m_hexItems[{c.q, c.r}] = hex;
         m_tileTypes[{c.q, c.r}] = tile.getType();
+        m_tileResources[{c.q, c.r}] = tile.getResource();
+
+        if (tile.getResource() != ResourceType::None)
+        {
+            auto *glyph = m_scene->addSimpleText(resourceGlyph(tile.getResource()));
+            glyph->setBrush(resourceColor(tile.getResource()));
+            QFont f = glyph->font();
+            f.setBold(true);
+            f.setPointSize(9);
+            glyph->setFont(f);
+            QRectF gb = glyph->boundingRect();
+            glyph->setPos(center.x() - gb.width() / 2.0, center.y() - gb.height() / 2.0);
+            glyph->setZValue(1.0);
+        }
+
         maxX = std::max(maxX, center.x() + kHexSize);
         maxY = std::max(maxY, center.y() + kHexSize);
     }
@@ -183,10 +254,20 @@ void MapView::mouseMoveEvent(QMouseEvent *event)
             auto typeIt = m_tileTypes.find(coords);
             if (typeIt != m_tileTypes.end())
             {
-                emit tileHovered(QStringLiteral("%1 (%2, %3)")
+                QString label = QStringLiteral("%1 (%2, %3)")
                                      .arg(tileTypeName(typeIt->second))
                                      .arg(coords.first)
-                                     .arg(coords.second));
+                                     .arg(coords.second);
+
+                auto resIt = m_tileResources.find(coords);
+                if (resIt != m_tileResources.end() && resIt->second != ResourceType::None)
+                {
+                    const char *rn = resourceName(resIt->second);
+                    if (rn)
+                        label += QStringLiteral(" — ресурс: %1").arg(QString::fromUtf8(rn));
+                }
+
+                emit tileHovered(label);
             }
         }
         m_hoveredCoords = coords;

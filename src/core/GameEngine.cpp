@@ -75,6 +75,7 @@ bool GameEngine::loadFromAssets(const std::string &assetsDir)
     json heroesJson = loadFile(assetsDir + "/heroes.json");
     json unitsJson = loadFile(assetsDir + "/units.json");
     json politicsJson = loadFile(assetsDir + "/political_actions.json");
+    json tilesJson = loadFile(assetsDir + "/tiles.json");
 
     if (racesJson.is_null() || buildingsJson.is_null() ||
         techJson.is_null() || heroesJson.is_null() || unitsJson.is_null() ||
@@ -85,6 +86,12 @@ bool GameEngine::loadFromAssets(const std::string &assetsDir)
     m_techCatalog = Technology::loadAllFromJson(techJson["technologies"]);
     m_unitCatalog = Unit::loadAllFromJson(unitsJson["units"]);
     m_politicalActionCatalog = PoliticalAction::loadAllFromJson(politicsJson["politicalActions"]);
+    float resourceDensity = 0.0f;
+    if (!tilesJson.is_null())
+    {
+        m_resourceCatalog = ResourceCatalog::loadAllFromJson(tilesJson["resources"]);
+        resourceDensity = tilesJson.value("resourceDensity", 0.0f);
+    }
 
     std::vector<Race> allRaces;
     for (const auto &r : racesJson["races"])
@@ -115,6 +122,8 @@ bool GameEngine::loadFromAssets(const std::string &assetsDir)
     mapParams.height = StartLayout::MAP_HEIGHT;
     mapParams.guaranteedLandCenters = StartLayout::pentagonCapitals();
     mapParams.guaranteedLandRadius = StartLayout::CAPITAL_LAND_RADIUS;
+    mapParams.resourceCatalog = m_resourceCatalog;
+    mapParams.resourceDensity = resourceDensity;
     Map gameMap = MapGenerator::generate(mapParams);
 
     const std::vector<std::string> botRaceIds = {"dwarves", "gnomes", "elves", "orcs"};
@@ -202,7 +211,7 @@ void GameEngine::endTurn()
                                    m_techCatalog, m_unitCatalog,
                                    m_politicalActionCatalog);
         }
-        player.advanceTurn();
+        player.advanceTurn(m_resourceCatalog);
     }
 
     m_state.processVassalage();
@@ -211,8 +220,18 @@ void GameEngine::endTurn()
     {
         for (auto &settlement : player.settlements())
         {
+            int foodBonus = 0;
+            for (const auto &tile : settlement.tiles())
+            {
+                if (tile.getResource() == ResourceType::None)
+                    continue;
+                const ResourceDef *def = ResourceCatalog::find(m_resourceCatalog, tile.getResource());
+                if (def && def->sphere == "growth")
+                    foodBonus += static_cast<int>(def->bonus);
+            }
+
             settlement.growPopulation(DEFAULT_BASE_GROWTH_RATE,
-                                      player.race().getModifiers().growth);
+                                      player.race().getModifiers().growth, foodBonus);
             player.spendIndustryOnQueues(settlement);
         }
     }

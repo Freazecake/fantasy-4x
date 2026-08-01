@@ -272,3 +272,116 @@ TEST_CASE("MapGenerator::generate: раскладка 5 столиц связн�
         CHECK(isFullyConnectedForTest(map));
     }
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// Блок 3.4: ресурсные клетки
+// ═══════════════════════════════════════════════════════════════════════
+
+namespace
+{
+    std::vector<ResourceDef> testResourceCatalog()
+    {
+        ResourceDef food;
+        food.type = ResourceType::Food;
+        food.sphere = "growth";
+        food.bonus = 6;
+        food.allowedTerrains = {TileType::Grass, TileType::Forest};
+
+        ResourceDef production;
+        production.type = ResourceType::Production;
+        production.sphere = "industry";
+        production.bonus = 8;
+        production.allowedTerrains = {TileType::Mountain, TileType::Forest};
+
+        return {food, production};
+    }
+}
+
+TEST_CASE("MapGenerator::generate: без каталога ресурсов клетки остаются без ресурса")
+{
+    MapGenerationParams params;
+    params.width = 20;
+    params.height = 18;
+    params.seed = 777;
+    params.resourceDensity = 0.5f; // высокая плотность, но каталог пуст
+
+    Map map = MapGenerator::generate(params);
+
+    for (const auto &tile : map.getMap())
+        CHECK(tile.getResource() == ResourceType::None);
+}
+
+TEST_CASE("MapGenerator::generate: с каталогом и высокой плотностью появляются ресурсы")
+{
+    MapGenerationParams params;
+    params.width = 20;
+    params.height = 18;
+    params.seed = 777;
+    params.resourceCatalog = testResourceCatalog();
+    params.resourceDensity = 0.9f; // почти на каждой подходящей клетке
+
+    Map map = MapGenerator::generate(params);
+
+    int withResource = 0;
+    for (const auto &tile : map.getMap())
+        if (tile.getResource() != ResourceType::None)
+            ++withResource;
+
+    CHECK(withResource > 0);
+}
+
+TEST_CASE("MapGenerator::generate: ресурс появляется только на разрешённых типах местности")
+{
+    MapGenerationParams params;
+    params.width = 20;
+    params.height = 18;
+    params.seed = 42;
+    params.resourceCatalog = testResourceCatalog(); // food: grass/forest, production: mountain/forest
+    params.resourceDensity = 0.9f;
+
+    Map map = MapGenerator::generate(params);
+
+    for (const auto &tile : map.getMap())
+    {
+        if (tile.getResource() == ResourceType::None)
+            continue;
+
+        if (tile.getResource() == ResourceType::Food)
+        {
+            CHECK(tile.getType() == TileType::Grass || tile.getType() == TileType::Forest);
+        }
+        else if (tile.getResource() == ResourceType::Production)
+        {
+            CHECK(tile.getType() == TileType::Mountain || tile.getType() == TileType::Forest);
+        }
+        CHECK(tile.getType() != TileType::Water); // на воде ресурсов не бывает
+    }
+}
+
+TEST_CASE("MapGenerator::generate: стартовая зона капиталов не получает ресурсов")
+{
+    MapGenerationParams params;
+    params.width = 20;
+    params.height = 18;
+    params.seed = 123;
+    params.guaranteedLandCenters = {Coords(10, 9)};
+    params.guaranteedLandRadius = 3;
+    params.resourceCatalog = testResourceCatalog();
+    params.resourceDensity = 1.0f; // максимум — если бы старт не защищался, он бы точно получил ресурс
+
+    Map map = MapGenerator::generate(params);
+
+    for (int dq = -3; dq <= 3; ++dq)
+    {
+        for (int dr = -3; dr <= 3; ++dr)
+        {
+            Coords c(10 + dq, 9 + dr);
+            if (c.distanceTo(Coords(10, 9)) > 3)
+                continue;
+            const Tile *t = map.tileAt(c.q, c.r);
+            if (!t)
+                continue;
+            CHECK(t->getResource() == ResourceType::None);
+        }
+    }
+}

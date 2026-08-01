@@ -24,6 +24,7 @@
 #include "core/Technology.hpp"
 #include "core/Hero.hpp"
 #include "core/PoliticalAction.hpp"
+#include "core/ResourceCatalog.hpp"
 
 #include <fstream>
 #include <unordered_map>
@@ -356,4 +357,33 @@ TEST_CASE("assets/political_actions.json: каждое действие груз
     CHECK(actions.size() == assets.at("politicalActions").size());
     for (const auto &a : actions)
         CHECK(a.getCost() >= 0);
+}
+
+TEST_CASE("assets/tiles.json парсится, у ресурсов уникальные типы и непустой список местности")
+{
+    json assets = loadJsonFile("tiles.json");
+    const auto &resources = assets.at("resources");
+    CHECK(resources.size() > 0u);
+
+    std::unordered_set<std::string> types;
+    for (const auto &r : resources)
+    {
+        types.insert(r.at("type").get<std::string>());
+        CHECK(r.at("allowedTerrains").size() > 0u);
+        CHECK(r.at("bonus").get<float>() > 0.0f);
+    }
+    CHECK(types.size() == resources.size()); // типы ресурсов не повторяются
+
+    CHECK(assets.at("resourceDensity").get<float>() >= 0.0f);
+    CHECK(assets.at("resourceDensity").get<float>() <= 1.0f);
+}
+
+TEST_CASE("assets/tiles.json: каждый ресурс грузится в ResourceDef без исключений")
+{
+    json assets = loadJsonFile("tiles.json");
+    auto defs = ResourceCatalog::loadAllFromJson(assets.at("resources"));
+    CHECK(defs.size() == assets.at("resources").size());
+
+    for (const auto &def : defs)
+        CHECK(def.type != ResourceType::None); // все типы из файла распознаны
 }

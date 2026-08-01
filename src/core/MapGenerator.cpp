@@ -137,7 +137,39 @@ Map MapGenerator::tryGenerateOnce(const MapGenerationParams &params, unsigned in
         }
     }
 
+    placeResources(map, params, protectedTiles, rng);
+
     return map;
+}
+
+void MapGenerator::placeResources(Map &map, const MapGenerationParams &params,
+                                  const std::unordered_set<long long> &protectedTiles,
+                                  std::mt19937 &rng)
+{
+    if (params.resourceCatalog.empty() || params.resourceDensity <= 0.0f)
+        return;
+
+    std::uniform_real_distribution<float> chance(0.0f, 1.0f);
+
+    for (auto &tile : map.getMap())
+    {
+        if (tile.getType() == TileType::Water)
+            continue;
+        if (protectedTiles.count(packKey(tile.getCoords().q, tile.getCoords().r)))
+            continue;
+        if (chance(rng) >= params.resourceDensity)
+            continue;
+
+        std::vector<const ResourceDef *> eligible;
+        for (const auto &def : params.resourceCatalog)
+            if (def.allowsTerrain(tile.getType()))
+                eligible.push_back(&def);
+        if (eligible.empty())
+            continue;
+
+        std::uniform_int_distribution<size_t> pick(0, eligible.size() - 1);
+        tile.setResource(eligible[pick(rng)]->type);
+    }
 }
 
 Map MapGenerator::generate(const MapGenerationParams &params)

@@ -175,3 +175,41 @@ TEST_CASE("GameEngine::endTurn: боту (isHuman=false) реально разы
         CHECK(assigned > 0); // ИИ должен был распределить хоть что-то за ход
     }
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// Блок 3.4: ресурсные клетки — интеграция через GameEngine::loadFromAssets
+// ═══════════════════════════════════════════════════════════════════════
+
+TEST_CASE("GameEngine::loadFromAssets: карта содержит ресурсные клетки (tiles.json подключён)")
+{
+    GameEngine engine;
+    CHECK(engine.loadFromAssets(ASSETS_DIR));
+
+    CHECK(!engine.resourceCatalog().empty());
+
+    int withResource = 0;
+    for (const auto &tile : engine.state().map().getMap())
+        if (tile.getResource() != ResourceType::None)
+            ++withResource;
+
+    // При плотности из tiles.json и карте 20x18 практически гарантированно
+    // найдётся хотя бы одна ресурсная клетка (вероятность нуля исчезающе мала).
+    CHECK(withResource > 0);
+}
+
+TEST_CASE("GameEngine::loadFromAssets: на клетках стартовых столиц ресурсов нет")
+{
+    GameEngine engine;
+    CHECK(engine.loadFromAssets(ASSETS_DIR));
+
+    for (const auto &p : engine.state().players())
+    {
+        for (const auto &settlement : p.settlements())
+        {
+            for (const auto &tile : settlement.tiles())
+            {
+                CHECK(tile.getResource() == ResourceType::None);
+            }
+        }
+    }
+}

@@ -67,6 +67,7 @@ private:
 
     std::map<std::pair<int, int>, QGraphicsPolygonItem *> m_hexItems;
     std::map<std::pair<int, int>, TileType> m_tileTypes;
+    std::map<std::pair<int, int>, ResourceType> m_tileResources;
     std::map<std::pair<int, int>, int> m_settlementOwners;
     int m_viewerPlayerId = 0;
     std::map<int, PlayerRelation> m_playerRelations;
