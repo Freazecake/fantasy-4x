@@ -120,11 +120,15 @@ public:
     void addTile(const Tile &tile);
 
     void seedInitialPopulation(int amount);
+    static constexpr int POPULATION_SOFT_CAP = 1000;
+
     void growPopulation(float baseGrowthRate, float raceGrowthModifier, int extraFlatGrowth = 0);
     void reallocate(Sphere from, Sphere to, int amount);
     void assignFromIdle(Sphere sphere, int amount);
     void unassignToIdle(Sphere sphere, int amount);
     void removePopulationPermanently(int amount);
+    void sufferCaptureLoss(float fraction);
+    void clearGarrison() { m_garrison.clear(); }
 
     void queueBuilding(const Building &building);
     BuildingProgressResult progressBuildingQueue(int industryPoints);

@@ -7,12 +7,12 @@
                 "health": 20.0,
                 "attack": 3.0,
                 "defense": 2.0,
-                "movementPoints": 2
+                "movementPoints": 3
             },
             "tier": 0,
             "requiredBuildingId": "",
             "recruitCost": 15,
-            "populationCost": 30
+            "populationCost": 15
         },
         {
             "id": "swordsman",
@@ -21,12 +21,12 @@
                 "health": 35.0,
                 "attack": 7.0,
                 "defense": 5.0,
-                "movementPoints": 2
+                "movementPoints": 3
             },
             "tier": 1,
             "requiredBuildingId": "barracks",
             "recruitCost": 30,
-            "populationCost": 50
+            "populationCost": 20
         },
         {
             "id": "archer",
@@ -35,12 +35,12 @@
                 "health": 22.0,
                 "attack": 8.0,
                 "defense": 2.0,
-                "movementPoints": 2
+                "movementPoints": 3
             },
             "tier": 1,
             "requiredBuildingId": "barracks",
-            "recruitCost": 28,
-            "populationCost": 50
+            "recruitCost": 30,
+            "populationCost": 20
         },
         {
             "id": "settler",
@@ -49,12 +49,12 @@
                 "health": 10.0,
                 "attack": 0.0,
                 "defense": 1.0,
-                "movementPoints": 2
+                "movementPoints": 3
             },
             "tier": 0,
             "requiredBuildingId": "",
             "recruitCost": 60,
-            "populationCost": 80,
+            "populationCost": 40,
             "isSettler": true
         }
     ]

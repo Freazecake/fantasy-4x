@@ -1,5 +1,6 @@
 #include "core/Settlement.hpp"
 
+#include <algorithm>
 #include <sstream>
 
 Settlement::Settlement()
@@ -44,8 +45,12 @@ void Settlement::seedInitialPopulation(int amount)
 
 void Settlement::growPopulation(float baseGrowthRate, float raceGrowthModifier, int extraFlatGrowth)
 {
-    int growth = static_cast<int>(m_populationCount * baseGrowthRate * raceGrowthModifier);
-    growth += extraFlatGrowth;
+    float capFactor = 1.0f - static_cast<float>(m_populationCount) / static_cast<float>(POPULATION_SOFT_CAP);
+    if (capFactor < 0.0f)
+        capFactor = 0.0f;
+
+    float rawGrowth = m_populationCount * baseGrowthRate * raceGrowthModifier + extraFlatGrowth;
+    int growth = static_cast<int>(rawGrowth * capFactor);
     if (growth < 0)
         growth = 0;
 
@@ -90,6 +95,28 @@ void Settlement::removePopulationPermanently(int amount)
     }
     m_population.idle -= amount;
     m_populationCount -= amount;
+}
+
+void Settlement::sufferCaptureLoss(float fraction)
+{
+    int loss = static_cast<int>(m_populationCount * fraction);
+    if (loss <= 0)
+    {
+        return;
+    }
+    int oldCount = m_populationCount;
+    m_populationCount -= loss;
+    float scale = static_cast<float>(m_populationCount) / static_cast<float>(oldCount);
+    m_population.science = static_cast<int>(m_population.science * scale);
+    m_population.industry = static_cast<int>(m_population.industry * scale);
+    m_population.trade = static_cast<int>(m_population.trade * scale);
+    m_population.diplomacy = static_cast<int>(m_population.diplomacy * scale);
+    m_population.idle = m_populationCount - (m_population.science + m_population.industry +
+                                             m_population.trade + m_population.diplomacy);
+    if (m_population.idle < 0)
+    {
+        m_population.idle = 0;
+    }
 }
 
 std::string Settlement::debugString() const

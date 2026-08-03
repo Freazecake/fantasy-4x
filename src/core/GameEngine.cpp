@@ -67,7 +67,7 @@ static Player createPlayer(int id, bool isHuman, const Race &race,
     return p;
 }
 
-bool GameEngine::loadFromAssets(const std::string &assetsDir)
+bool GameEngine::loadFromAssets(const std::string &assetsDir, unsigned int mapSeed)
 {
     json racesJson = loadFile(assetsDir + "/races.json");
     json buildingsJson = loadFile(assetsDir + "/buildings.json");
@@ -124,6 +124,7 @@ bool GameEngine::loadFromAssets(const std::string &assetsDir)
     mapParams.guaranteedLandRadius = StartLayout::CAPITAL_LAND_RADIUS;
     mapParams.resourceCatalog = m_resourceCatalog;
     mapParams.resourceDensity = resourceDensity;
+    mapParams.seed = mapSeed;
     Map gameMap = MapGenerator::generate(mapParams);
 
     const std::vector<std::string> botRaceIds = {"dwarves", "gnomes", "elves", "orcs"};
@@ -166,6 +167,21 @@ std::string GameEngine::applyPoliticalAction(int playerId, const std::string &ac
         if (a.getId() != actionId)
             continue;
 
+        if (a.getType() == PoliticalActionType::PoliticalConquest)
+        {
+            if (!target)
+                return "Цель не найдена";
+            if (!m_state.canPoliticalConquer(playerId, targetId))
+                return "Цель слишком сильна для политического поглощения";
+            if (!player->trySpendDiplomacy(m_state.politicalConquestCost(playerId, targetId)))
+                return "Недостаточно дипломатии";
+            if (!m_state.applyPoliticalConquest(playerId, targetId))
+                return "Политическое поглощение не удалось";
+            if (m_state.checkVictory().hasWinner())
+                return "ПОЛИТИЧЕСКАЯ ПОБЕДА!";
+            return "Политическое поглощение проведено";
+        }
+
         if (!player->trySpendOnPoliticalAction(a))
             return "Недостаточно дипломатии";
 
@@ -190,12 +206,7 @@ std::string GameEngine::applyPoliticalAction(int playerId, const std::string &ac
             return "Вассализация проведена";
 
         case PoliticalActionType::PoliticalConquest:
-            if (!target)
-                return "Цель не найдена";
-            m_state.applyPoliticalConquest(playerId, targetId);
-            if (m_state.checkVictory().hasWinner())
-                return "ПОЛИТИЧЕСКАЯ ПОБЕДА!";
-            return "Политическое поглощение проведено";
+            return "Политическое поглощение не удалось";
         }
     }
     return "Действие не найдено";
@@ -203,19 +214,6 @@ std::string GameEngine::applyPoliticalAction(int playerId, const std::string &ac
 
 void GameEngine::endTurn()
 {
-    for (auto &player : m_state.players())
-    {
-        if (!player.isHuman())
-        {
-            AIController::takeTurn(player, m_state, m_buildingCatalog,
-                                   m_techCatalog, m_unitCatalog,
-                                   m_politicalActionCatalog);
-        }
-        player.advanceTurn(m_resourceCatalog);
-    }
-
-    m_state.processVassalage();
-
     for (auto &player : m_state.players())
     {
         for (auto &settlement : player.settlements())
@@ -232,9 +230,24 @@ void GameEngine::endTurn()
 
             settlement.growPopulation(DEFAULT_BASE_GROWTH_RATE,
                                       player.race().getModifiers().growth, foodBonus);
-            player.spendIndustryOnQueues(settlement);
         }
     }
+
+    for (auto &player : m_state.players())
+    {
+        if (!player.isHuman())
+        {
+            AIController::takeTurn(player, m_state, m_buildingCatalog,
+                                   m_techCatalog, m_unitCatalog,
+                                   m_politicalActionCatalog);
+        }
+        player.advanceTurn(m_resourceCatalog);
+
+        for (auto &settlement : player.settlements())
+            player.spendIndustryOnQueues(settlement);
+    }
+
+    m_state.processVassalage();
     m_state.checkAlliances();
 
     for (auto &player : m_state.players())

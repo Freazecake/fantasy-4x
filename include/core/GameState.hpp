@@ -17,8 +17,13 @@ enum class GlobalPhase
 };
 
 inline constexpr int PHASE2_TURN_THRESHOLD = 20;
-inline constexpr int PHASE3_TURN_THRESHOLD = 50;
+inline constexpr int PHASE3_TURN_THRESHOLD = 35;
 inline constexpr int PHASE3_MAX_ALIVE_PLAYERS = 3;
+
+inline constexpr int POLITICAL_CONQUEST_BASE_COST = 200;
+inline constexpr int POLITICAL_CONQUEST_COST_PER_EXTRA_SETTLEMENT = 150;
+inline constexpr float POLITICAL_CONQUEST_STOCKPILE_CAP = 150.0f;
+inline constexpr float TRIBUTE_STOCKPILE_CAP = 60.0f;
 
 struct ActiveAlliance
 {
@@ -83,7 +88,9 @@ public:
     void applyVassalize(int masterId, int vassalId);
     void processVassalage();
     const std::unordered_map<int, int> &vassalizations() const { return m_vassalizations; }
-    void applyPoliticalConquest(int conquerorId, int targetId);
+    bool canPoliticalConquer(int conquerorId, int targetId) const;
+    int politicalConquestCost(int conquerorId, int targetId) const;
+    bool applyPoliticalConquest(int conquerorId, int targetId);
     VictoryResult checkVictory() const;
 
     Army *findArmy(const std::string &id);

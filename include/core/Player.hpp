@@ -89,12 +89,15 @@ public:
     void advanceTurn(const std::vector<ResourceDef> &resourceCatalog = {});
 
     Resources takeFractionFromEconomy(float fraction);
+    Resources takeCappedFractionFromEconomy(float fraction, float capPerResource);
     void addResources(const Resources &res);
 
     float effectiveTradeMultiplier() const;
     bool exchangeTrade(const std::string &targetResource, int tradeToSpend);
 
     bool trySpendOnPoliticalAction(const PoliticalAction &action);
+    bool trySpendDiplomacy(int amount);
+    float militaryPower() const;
 
     UnitStats effectiveUnitStats(const Settlement &settlement, const Unit &unit) const
     {

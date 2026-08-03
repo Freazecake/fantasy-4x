@@ -1,5 +1,7 @@
 #include "core/Player.hpp"
 
+#include <algorithm>
+
 Player::Player() {}
 
 bool Player::setCurrentResearch(const std::string &techId)
@@ -114,14 +116,15 @@ float Player::effectiveTradeMultiplier() const
     for (const auto &hero : m_heroes)
         multiplier *= hero.getModifiers().trade;
 
-    for (const auto &settlement : m_settlements)
-        for (const auto &building : settlement.builtBuildings())
-            multiplier *= building.getModifiers().trade;
-
     if (m_allianceBonus)
         multiplier *= 1.2;
 
-    return multiplier;
+    float buildingBonus = 0.0f;
+    for (const auto &settlement : m_settlements)
+        for (const auto &building : settlement.builtBuildings())
+            buildingBonus += (building.getModifiers().trade - 1.0f);
+
+    return multiplier * (1.0f + buildingBonus);
 }
 
 bool Player::exchangeTrade(const std::string &targetResource, int tradeToSpend)
@@ -142,6 +145,20 @@ Resources Player::takeFractionFromEconomy(float fraction)
     return taken;
 }
 
+Resources Player::takeCappedFractionFromEconomy(float fraction, float capPerResource)
+{
+    Resources total = m_economy.totals();
+    Resources taken = total * fraction;
+    taken.science = std::min(taken.science, capPerResource);
+    taken.industry = std::min(taken.industry, capPerResource);
+    taken.trade = std::min(taken.trade, capPerResource);
+    taken.diplomacy = std::min(taken.diplomacy, capPerResource);
+    taken.growth = 0.0f;
+    taken.military = 0.0f;
+    m_economy.accumulate(taken * (-1.0f));
+    return taken;
+}
+
 void Player::addResources(const Resources &res)
 {
     m_economy.accumulate(res);
@@ -150,6 +167,23 @@ void Player::addResources(const Resources &res)
 bool Player::trySpendOnPoliticalAction(const PoliticalAction &action)
 {
     return m_economy.trySpendDiplomacy(action.getCost());
+}
+
+bool Player::trySpendDiplomacy(int amount)
+{
+    return m_economy.trySpendDiplomacy(amount);
+}
+
+float Player::militaryPower() const
+{
+    float power = 0.0f;
+    for (const auto &s : m_settlements)
+        for (const auto &u : s.garrison())
+            power += u.getStats().attack + u.getStats().defense + u.getCurrentHealth() * 0.1f;
+    for (const auto &a : m_armies)
+        for (const auto &u : a.units())
+            power += u.getStats().attack + u.getStats().defense + u.getCurrentHealth() * 0.1f;
+    return power;
 }
 
 Army Player::detachArmy(Settlement &from, const std::vector<std::string> &unitIds)

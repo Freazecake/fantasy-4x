@@ -22,7 +22,7 @@ private:
     std::vector<ResourceDef> m_resourceCatalog;
 
 public:
-    bool loadFromAssets(const std::string &assetsDir);
+    bool loadFromAssets(const std::string &assetsDir, unsigned int mapSeed = 0);
     void endTurn();
     std::string applyPoliticalAction(int playerId, const std::string &actionId, int targetId);
     VictoryResult checkVictoryCondition() const { return m_state.checkVictory(); }

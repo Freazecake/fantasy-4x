@@ -1,5 +1,7 @@
 #include "core/GameState.hpp"
 
+#include <algorithm>
+
 void GameState::addPlayer(const Player &player)
 {
     m_players.push_back(player);
@@ -114,7 +116,7 @@ void GameState::applyDemandTribute(int sourceId, int targetId)
     if (!source || !target)
         return;
 
-    Resources taken = target->takeFractionFromEconomy(0.3f);
+    Resources taken = target->takeCappedFractionFromEconomy(0.3f, TRIBUTE_STOCKPILE_CAP);
     source->addResources(taken);
 }
 
@@ -137,14 +139,64 @@ void GameState::processVassalage()
         }
         if (vassal && master)
         {
-            Resources taken = vassal->takeFractionFromEconomy(0.3f);
+            Resources taken = vassal->takeCappedFractionFromEconomy(0.3f, TRIBUTE_STOCKPILE_CAP);
             master->addResources(taken);
         }
     }
 }
 
-void GameState::applyPoliticalConquest(int conquerorId, int targetId)
+bool GameState::canPoliticalConquer(int conquerorId, int targetId) const
 {
+    const Player *conqueror = nullptr, *target = nullptr;
+    for (const auto &p : m_players)
+    {
+        if (p.id() == conquerorId)
+            conqueror = &p;
+        if (p.id() == targetId)
+            target = &p;
+    }
+    if (!conqueror || !target)
+        return false;
+    if (target->settlements().empty())
+        return false;
+    if (conqueror->resources().diplomacy <= target->resources().diplomacy)
+        return false;
+    return true;
+}
+
+int GameState::politicalConquestCost(int conquerorId, int targetId) const
+{
+    const Player *conqueror = nullptr, *target = nullptr;
+    for (const auto &p : m_players)
+    {
+        if (p.id() == conquerorId)
+            conqueror = &p;
+        if (p.id() == targetId)
+            target = &p;
+    }
+    if (!target)
+        return POLITICAL_CONQUEST_BASE_COST;
+
+    int conquerorExtra = conqueror ? static_cast<int>(conqueror->settlements().size()) - 1 : 0;
+    if (conquerorExtra < 0)
+        conquerorExtra = 0;
+
+    int extra = static_cast<int>(target->settlements().size()) - 1;
+    if (extra < 0)
+        extra = 0;
+    int militaryCost = static_cast<int>(target->militaryPower());
+    if (militaryCost > 200)
+        militaryCost = 200;
+    return POLITICAL_CONQUEST_BASE_COST +
+           POLITICAL_CONQUEST_COST_PER_EXTRA_SETTLEMENT * extra +
+           POLITICAL_CONQUEST_COST_PER_EXTRA_SETTLEMENT * conquerorExtra + militaryCost;
+}
+
+bool GameState::applyPoliticalConquest(int conquerorId, int targetId)
+{
+    if (!canPoliticalConquer(conquerorId, targetId))
+        return false;
+
     Player *conqueror = nullptr, *target = nullptr;
     for (auto &p : m_players)
     {
@@ -154,16 +206,18 @@ void GameState::applyPoliticalConquest(int conquerorId, int targetId)
             target = &p;
     }
     if (!conqueror || !target)
-        return;
+        return false;
 
     for (auto &s : target->settlements())
     {
+        s.sufferCaptureLoss(0.5f);
         s.setOwnerId(conquerorId);
         conqueror->addSettlement(s);
     }
     target->settlements().clear();
 
-    Resources taken = target->takeFractionFromEconomy(1.0f);
+    Resources taken =
+        target->takeCappedFractionFromEconomy(0.5f, POLITICAL_CONQUEST_STOCKPILE_CAP);
     conqueror->addResources(taken);
 
     int aliveCount = 0;
@@ -172,6 +226,8 @@ void GameState::applyPoliticalConquest(int conquerorId, int targetId)
             ++aliveCount;
     if (aliveCount <= 1)
         m_politicalConquestWinnerId = conquerorId;
+
+    return true;
 }
 
 VictoryResult GameState::checkVictory() const
@@ -330,14 +386,16 @@ CombatResult GameState::resolveMovementCombat(Army &attacker, const Coords &dest
                 defTerrain, s.builtBuildings(),
                 attackerRace, p.race().getModifiers().military);
 
-            if (result.attackerWon)
+if (result.attackerWon)
             {
                 attacker.applyCasualties(result.attackerSurvivors);
+                s.sufferCaptureLoss(0.5f);
+                s.clearGarrison();
                 s.setOwnerId(attacker.getOwnerId());
                 Settlement captured = s;
                 p.settlements().erase(it);
                 attackerPlayer->addSettlement(captured);
-                result.settlementCaptured = true;
+result.settlementCaptured = true;
             }
             else if (result.isDraw)
             {

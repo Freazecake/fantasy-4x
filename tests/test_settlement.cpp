@@ -98,15 +98,19 @@ TEST_CASE("Settlement::reallocate переносит людей между дв�
     CHECK(s.allocation().total() == 10);
 }
 
-TEST_CASE("Settlement::growPopulation увеличивает и population, и idle по формуле расы") {
-    // growthPerTurn = population * baseGrowthRate * race.modifiers.growth (раздел 2.2 гайда)
+TEST_CASE("Settlement::growPopulation увеличивает и population, и idle по формуле расы, "
+          "с учётом мягкого предела населения") {
+    // growthPerTurn = population * baseGrowthRate * race.modifiers.growth,
+    // дополнительно затухающий по мере приближения к POPULATION_SOFT_CAP
+    // (см. комментарий в Settlement::growPopulation).
     Settlement s(1, SettlementType::Village);
     s.seedInitialPopulation(100);
 
-    s.growPopulation(0.1f, 1.5f);  // ожидаемый прирост: 100 * 0.1 * 1.5 = 15
+    // capFactor = 1 - 100/1000 = 0.9; прирост = 100*0.1*1.5 * 0.9 = 13 (после floor)
+    s.growPopulation(0.1f, 1.5f);
 
-    CHECK(s.populationCount() == 115);
-    CHECK(s.allocation().idle == 115);
+    CHECK(s.populationCount() == 113);
+    CHECK(s.allocation().idle == 113);
 }
 
 TEST_CASE("Settlement::growPopulation с нулевым населением не даёт роста") {
@@ -121,11 +125,11 @@ TEST_CASE("Settlement::growPopulation: extraFlatGrowth (бонус ресурс�
     Settlement s(1, SettlementType::Village);
     s.seedInitialPopulation(100);
 
-    // Процентный прирост: 100 * 0.1 * 1.5 = 15, плюс фиксированный бонус еды 6
+    // (100*0.1*1.5 + 6) * capFactor(0.9) = 21 * 0.9 = 18 (после floor)
     s.growPopulation(0.1f, 1.5f, 6);
 
-    CHECK(s.populationCount() == 121);
-    CHECK(s.allocation().idle == 121);
+    CHECK(s.populationCount() == 118);
+    CHECK(s.allocation().idle == 118);
 }
 
 TEST_CASE("Settlement::growPopulation: extraFlatGrowth работает даже при нулевом населении") {
@@ -134,6 +138,19 @@ TEST_CASE("Settlement::growPopulation: extraFlatGrowth работает даже
     s.growPopulation(0.1f, 1.5f, 6);
 
     CHECK(s.populationCount() == 6);
+}
+
+TEST_CASE("Settlement::growPopulation: прирост затухает почти до нуля у POPULATION_SOFT_CAP "
+          "(регрессионный тест на баг из блока 3.5 — раньше население росло экспоненциально "
+          "без ограничений и за ~200 ходов ломало float-арифметику ИИ)") {
+    Settlement s(1, SettlementType::Village);
+    s.seedInitialPopulation(Settlement::POPULATION_SOFT_CAP - 5);
+
+    for (int i = 0; i < 20; ++i)
+        s.growPopulation(0.1f, 1.5f);
+
+    // Население не может уйти существенно выше мягкого предела.
+    CHECK(s.populationCount() < Settlement::POPULATION_SOFT_CAP + 10);
 }
 
 TEST_CASE("Settlement::growPopulation не уходит в отрицательный прирост даже при "

@@ -12,9 +12,9 @@ float AIStrategy::phaseWeightMilitary(GlobalPhase phase)
     case GlobalPhase::Phase2_OpenMap:
         return 1.3f;
     case GlobalPhase::Phase3_Final:
-        return 1.0f;
+        return 1.5f;
     }
-    return 1.0f;
+    return 1.5f;
 }
 
 float AIStrategy::phaseWeightEconomy(GlobalPhase phase)
@@ -141,10 +141,10 @@ float AIStrategy::scoreRecruitUnit(const Settlement &s, const Unit &u, GlobalPha
         switch (phase)
         {
         case GlobalPhase::NotStarted:
-            desire = 1.5f;
+            desire = 3.0f;
             break;
         case GlobalPhase::Phase2_OpenMap:
-            desire = 1.2f;
+            desire = 2.4f;
             break;
         case GlobalPhase::Phase3_Final:
         default:
@@ -207,11 +207,16 @@ float AIStrategy::scorePoliticalAction(const Player &p, const PoliticalAction &a
     if (p.resources().diplomacy < static_cast<float>(a.getCost()))
         return -1.0f;
 
+    if (target.settlements().empty())
+        return -1.0f;
+
     float base = 1.0f;
     switch (a.getType())
     {
     case PoliticalActionType::PoliticalConquest:
-        base = target.resources().diplomacy < p.resources().diplomacy * 0.7f ? 3.0f : 0.2f;
+        if (p.resources().diplomacy <= target.resources().diplomacy)
+            return -1.0f;
+        base = 3.0f;
         break;
     case PoliticalActionType::Vassalize:
         base = 2.0f;
@@ -227,7 +232,8 @@ float AIStrategy::scorePoliticalAction(const Player &p, const PoliticalAction &a
     return base * phaseWeightDiplomacy(phase);
 }
 
-float AIStrategy::scoreAttack(const Army &mine, const Army &enemyArmyOrGarrisonOwner, GlobalPhase phase)
+float AIStrategy::scoreAttack(const Army &mine, const Army &enemyArmyOrGarrisonOwner,
+                              GlobalPhase phase, int enemySettlementCount)
 {
     if (mine.units().empty())
         return -1.0f;
@@ -246,12 +252,17 @@ float AIStrategy::scoreAttack(const Army &mine, const Army &enemyArmyOrGarrisonO
 
     float ratio = myPower / enemyPower;
 
-    float advantage = ratio - 1.3f;
+    float advantage = ratio - 1.15f;
 
     int distance = mine.position().distanceTo(enemyArmyOrGarrisonOwner.position());
     float distancePenalty = 1.0f / (1.0f + static_cast<float>(distance) * 0.3f);
 
-    return advantage * phaseWeightMilitary(phase) * distancePenalty;
+    float score = advantage * phaseWeightMilitary(phase) * distancePenalty;
+
+    if (enemySettlementCount == 1 && phase == GlobalPhase::Phase3_Final)
+        score += 10.0f * phaseWeightMilitary(phase);
+
+    return score;
 }
 
 float AIStrategy::scoreExpand(const Army &mine, const Coords &candidateDestination,

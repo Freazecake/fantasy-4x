@@ -32,3 +32,38 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 
 enable_testing()
 add_subdirectory(tests)
+
+add_executable(playtest
+    tools/playtest.cpp
+
+    src/core/Race.cpp
+    src/core/Tile.cpp
+    src/core/Map.cpp
+    src/core/MapGenerator.cpp
+    src/core/ResourceCatalog.cpp
+    src/core/Settlement.cpp
+    src/core/Building.cpp
+    src/core/Technology.cpp
+    src/core/Unit.cpp
+    src/core/Hero.cpp
+    src/core/Economy.cpp
+    src/core/Military.cpp
+    src/core/PoliticalAction.cpp
+    src/core/TradeMarket.cpp
+    src/core/Player.cpp
+    src/core/GameState.cpp
+    src/core/Army.cpp
+    src/core/Combat.cpp
+    src/core/GameEngine.cpp
+    src/ai/AIController.cpp
+    src/ai/AIStrategy.cpp
+)
+
+target_include_directories(playtest PRIVATE
+    include
+    src
+)
+
+target_compile_definitions(playtest PRIVATE
+    ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets"
+)

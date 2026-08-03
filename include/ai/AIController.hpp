@@ -19,4 +19,7 @@ public:
     static void decideMilitaryActions(Player &p, GameState &state, GlobalPhase phase);
     static void decideTradeExchange(Player &p, GlobalPhase phase);
     static void decideSettlerActions(Player &p, GameState &state, GlobalPhase phase);
+    static void pursueNearestEnemy(Player &p, GameState &state, Army &mine,
+                                   const std::string &armyId, const std::vector<Coords> &occupied);
+    static void decideDeployment(Player &p);
 };

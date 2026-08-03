@@ -668,3 +668,99 @@ TEST_CASE("AIController::decideSettlerActions: не основывает гор�
     CHECK(army != nullptr);
     CHECK(!(army->position().q == 5 && army->position().r == 5)); // ушёл искать другое место
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// Блок 3.5: playtest выявил, что гарнизон никогда не выводился в поле —
+// decideDeployment закрывает этот пробел.
+// ═══════════════════════════════════════════════════════════════════════
+
+TEST_CASE("AIController::decideDeployment: гарнизон выше порога выводится в армию, "
+          "минимальный резерв остаётся в городе")
+{
+    GameState state;
+    state.setMap(Map::generateMap(10, 10));
+
+    Player p;
+    p.setId(0);
+    p.setRace(makeRace("humans", 1, 1, 1, 1, 1, 1));
+
+    Settlement s(0, SettlementType::Village);
+    for (int dx = -1; dx <= 1; ++dx)
+        for (int dy = -1; dy <= 1; ++dy)
+            s.addTile(Tile(5 + dx, 5 + dy));
+
+    std::vector<Unit> garrison;
+    for (int i = 0; i < 8; ++i)
+        garrison.push_back(makeUnit("militia", 0, "", 3, 2, 20, 15, 20));
+    s.addToGarrison(garrison);
+
+    p.addSettlement(s);
+    state.addPlayer(p);
+
+    AIController::decideDeployment(state.players()[0]);
+
+    Settlement &after = state.players()[0].settlements()[0];
+    CHECK(after.garrison().size() >= 1u); // резерв остался
+    CHECK(after.garrison().size() < 8u);  // но часть точно вывели
+
+    int deployedUnits = 0;
+    for (const auto &a : state.players()[0].armies())
+        deployedUnits += static_cast<int>(a.units().size());
+    CHECK(deployedUnits > 0);
+    CHECK(deployedUnits + static_cast<int>(after.garrison().size()) == 8);
+}
+
+TEST_CASE("AIController::decideDeployment: маленький гарнизон (не выше порога) не трогаем")
+{
+    GameState state;
+    state.setMap(Map::generateMap(10, 10));
+
+    Player p;
+    p.setId(0);
+    p.setRace(makeRace("humans", 1, 1, 1, 1, 1, 1));
+
+    Settlement s(0, SettlementType::Village);
+    s.addTile(Tile(5, 5));
+    s.addToGarrison({makeUnit("militia", 0, "", 3, 2, 20, 15, 20)});
+    p.addSettlement(s);
+    state.addPlayer(p);
+
+    AIController::decideDeployment(state.players()[0]);
+
+    CHECK(state.players()[0].settlements()[0].garrison().size() == 1u);
+    CHECK(state.players()[0].armies().empty());
+}
+
+TEST_CASE("AIController::decideDeployment: поселенцы выводятся каждый в отдельную "
+          "\"чистую\" армию, а не смешиваются с бойцами")
+{
+    GameState state;
+    state.setMap(Map::generateMap(10, 10));
+
+    Player p;
+    p.setId(0);
+    p.setRace(makeRace("humans", 1, 1, 1, 1, 1, 1));
+
+    Settlement s(0, SettlementType::Village);
+    s.addTile(Tile(5, 5));
+
+    Unit settler1 = Unit::loadFromJson({
+        {"id", "settler"}, {"name", "Поселенец"},
+        {"stats", {{"health", 10}, {"attack", 0}, {"defense", 1}, {"movementPoints", 2}}},
+        {"tier", 0}, {"requiredBuildingId", ""}, {"recruitCost", 60}, {"populationCost", 80},
+        {"isSettler", true}
+    });
+    s.addToGarrison({settler1, settler1}); // два поселенца одновременно в гарнизоне
+    p.addSettlement(s);
+    state.addPlayer(p);
+
+    AIController::decideDeployment(state.players()[0]);
+
+    CHECK(state.players()[0].settlements()[0].garrison().empty());
+    CHECK(state.players()[0].armies().size() == 2u); // каждый поселенец — своя армия
+    for (const auto &a : state.players()[0].armies())
+    {
+        CHECK(a.isSettlerArmy());
+        CHECK(a.units().size() == 1u); // ровно один поселенец на армию
+    }
+}

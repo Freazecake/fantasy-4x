@@ -41,4 +41,8 @@ public:
     void moveTo(const Coords &dest, int cost);
 
     void applyCasualties(const std::vector<Unit> &survivors) { m_units = survivors; }
+    void addUnits(const std::vector<Unit> &units)
+    {
+        m_units.insert(m_units.end(), units.begin(), units.end());
+    }
 };
