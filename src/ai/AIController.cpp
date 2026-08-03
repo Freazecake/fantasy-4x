@@ -67,9 +67,6 @@ void AIController::decideAllocations(Settlement &s, GlobalPhase phase)
     if (idle <= 0)
         return;
 
-    // Keep idle population reserved for settler recruitment during expansion
-    // phases, so the AI can actually grow new settlements instead of sinking
-    // every spare citizen into the four economic spheres.
     constexpr int SETTLER_POP_RESERVE = 40;
     int reserve = 0;
     if (phase != GlobalPhase::Phase3_Final)
@@ -199,8 +196,6 @@ void AIController::decidePoliticalAction(Player &p, const std::vector<PoliticalA
         if (a.getType() == PoliticalActionType::PoliticalConquest)
             conquestAction = &a;
 
-    // When a political conquest is viable, commit the AI to saving for it:
-    // no tribute/vassal spending that would drain the stockpile before the annexation.
     if (conquestAction)
     {
         ActionCandidate bestConquest{nullptr, -1, -1.0f, -1};
@@ -600,5 +595,72 @@ void AIController::decideDeployment(Player &p)
         {
             p.detachArmy(s, toDeploy);
         }
+    }
+}
+
+void AIController::decideSettlerActions(Player &p, GameState &state, GlobalPhase phase)
+{
+    std::vector<std::string> settlerArmyIds;
+    for (const auto &a : p.armies())
+        if (a.isSettlerArmy())
+            settlerArmyIds.push_back(a.getId());
+
+    for (const auto &armyId : settlerArmyIds)
+    {
+        Army *mine = state.findArmy(armyId);
+        if (!mine)
+            continue;
+
+        // Уже стоим на подходящей клетке — основываем город немедленно,
+        // не тратя ход на бессмысленное перемещение.
+        if (state.canFoundSettlementAt(mine->position()))
+        {
+            state.foundSettlementFromArmy(armyId);
+            continue;
+        }
+
+        if (mine->movementPointsRemaining() <= 0)
+            continue;
+
+        std::vector<Coords> occupied;
+        for (const auto &pl : state.players())
+        {
+            for (const auto &s : pl.settlements())
+                for (const auto &t : s.tiles())
+                    occupied.push_back(t.getCoords());
+            for (const auto &ar : pl.armies())
+                occupied.push_back(ar.position());
+        }
+        auto isOccupied = [&occupied](const Coords &c)
+        {
+            for (const auto &o : occupied)
+                if (o.q == c.q && o.r == c.r)
+                    return true;
+            return false;
+        };
+
+        std::vector<Candidate> candidates;
+        for (const auto &dest : state.map().reachableTiles(mine->position(), mine->movementPointsRemaining()))
+        {
+            if (isOccupied(dest))
+                continue;
+            if (!state.canFoundSettlementAt(dest))
+                continue;
+
+            float score = AIStrategy::scoreExpand(*mine, dest, phase, state.map());
+            candidates.push_back({dest, score});
+        }
+
+        if (candidates.empty())
+            continue;
+
+        auto best = std::max_element(candidates.begin(), candidates.end(),
+                                     [](const Candidate &a, const Candidate &b)
+                                     { return a.score < b.score; });
+
+        if (best->score <= 0.0f)
+            continue;
+
+        state.moveArmy(armyId, best->destination);
     }
 }

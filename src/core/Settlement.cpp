@@ -33,6 +33,21 @@ Coords Settlement::anchorCoords() const
     return best;
 }
 
+Coords Settlement::anchorCoords() const
+{
+    if (m_tiles.empty())
+        return Coords(-1, -1);
+
+    Coords best = m_tiles.front().getCoords();
+    for (const auto &t : m_tiles)
+    {
+        Coords c = t.getCoords();
+        if (c.q < best.q || (c.q == best.q && c.r < best.r))
+            best = c;
+    }
+    return best;
+}
+
 void Settlement::seedInitialPopulation(int amount)
 {
     if (amount < 0)

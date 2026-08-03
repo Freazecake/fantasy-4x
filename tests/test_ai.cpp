@@ -28,9 +28,10 @@ namespace
                   float diplomacy, float military, float growth)
     {
         return Race::loadFromJson({
-            {"id", id}, {"name", id}, {"startingSettlementType", "village"},
-            {"modifiers", {{"science", science}, {"industry", industry}, {"trade", trade},
-                           {"diplomacy", diplomacy}, {"military", military}, {"growth", growth}}},
+            {"id", id},
+            {"name", id},
+            {"startingSettlementType", "village"},
+            {"modifiers", {{"science", science}, {"industry", industry}, {"trade", trade}, {"diplomacy", diplomacy}, {"military", military}, {"growth", growth}}},
         });
     }
 
@@ -42,19 +43,43 @@ namespace
     {
         std::string resourceType = "industry";
         float bonus = ind;
-        if (sci != 1.0f) { resourceType = "science"; bonus = sci; }
-        else if (ind != 1.0f) { resourceType = "industry"; bonus = ind; }
-        else if (trade != 1.0f) { resourceType = "trade"; bonus = trade; }
-        else if (dipl != 1.0f) { resourceType = "diplomacy"; bonus = dipl; }
-        else if (mil != 1.0f) { resourceType = "military"; bonus = mil; }
+        if (sci != 1.0f)
+        {
+            resourceType = "science";
+            bonus = sci;
+        }
+        else if (ind != 1.0f)
+        {
+            resourceType = "industry";
+            bonus = ind;
+        }
+        else if (trade != 1.0f)
+        {
+            resourceType = "trade";
+            bonus = trade;
+        }
+        else if (dipl != 1.0f)
+        {
+            resourceType = "diplomacy";
+            bonus = dipl;
+        }
+        else if (mil != 1.0f)
+        {
+            resourceType = "military";
+            bonus = mil;
+        }
 
         json arr = json::array();
         for (const auto &u : unlocksUnitIds)
             arr.push_back(u);
         return Building::loadFromJson({
-            {"id", id}, {"name", id}, {"category", "economic"},
-            {"resourceType", resourceType}, {"bonusMultiplier", bonus},
-            {"industryCost", cost}, {"unlocksUnitIds", arr},
+            {"id", id},
+            {"name", id},
+            {"category", "economic"},
+            {"resourceType", resourceType},
+            {"bonusMultiplier", bonus},
+            {"industryCost", cost},
+            {"unlocksUnitIds", arr},
             {"removesUntrainedPenalty", removesPenalty},
         });
     }
@@ -65,15 +90,21 @@ namespace
                         float globalMul = 1.0f)
     {
         json prereqArr = json::array();
-        for (const auto &p : prereqs) prereqArr.push_back(p);
+        for (const auto &p : prereqs)
+            prereqArr.push_back(p);
         json catArr = json::array();
-        for (const auto &c : bonusCategories) catArr.push_back(c);
+        for (const auto &c : bonusCategories)
+            catArr.push_back(c);
         json unlocksArr = json::array();
         return Technology::loadFromJson({
-            {"id", id}, {"name", id}, {"category", "science"},
-            {"scienceCost", cost}, {"prerequisiteIds", prereqArr},
+            {"id", id},
+            {"name", id},
+            {"category", "science"},
+            {"scienceCost", cost},
+            {"prerequisiteIds", prereqArr},
             {"unlocksBuildingIds", unlocksArr},
-            {"bonusCategories", catArr}, {"globalBonusMultiplier", globalMul},
+            {"bonusCategories", catArr},
+            {"globalBonusMultiplier", globalMul},
         });
     }
 
@@ -82,18 +113,23 @@ namespace
                   int recruitCost = 20, int populationCost = 30, int mp = 2)
     {
         return Unit::loadFromJson({
-            {"id", id}, {"name", id},
+            {"id", id},
+            {"name", id},
             {"stats", {{"health", health}, {"attack", attack}, {"defense", defense}, {"movementPoints", mp}}},
-            {"tier", tier}, {"requiredBuildingId", requiredBuildingId},
-            {"recruitCost", recruitCost}, {"populationCost", populationCost},
+            {"tier", tier},
+            {"requiredBuildingId", requiredBuildingId},
+            {"recruitCost", recruitCost},
+            {"populationCost", populationCost},
         });
     }
 
     Hero makeHero(const std::string &id, const std::string &raceId, float mil = 1.0f)
     {
         return Hero::loadFromJson({
-            {"id", id}, {"name", id}, {"raceId", raceId},
-            {"modifiers", {{"science",1},{"industry",1},{"trade",1},{"diplomacy",1},{"military",mil},{"growth",1}}},
+            {"id", id},
+            {"name", id},
+            {"raceId", raceId},
+            {"modifiers", {{"science", 1}, {"industry", 1}, {"trade", 1}, {"diplomacy", 1}, {"military", mil}, {"growth", 1}}},
         });
     }
 
@@ -364,8 +400,7 @@ TEST_CASE("AIController::decideAllocations: idle распределяется п
 
     AIController::decideAllocations(s, phase);
 
-    int totalAssigned = s.allocation().science + s.allocation().industry
-                      + s.allocation().trade + s.allocation().diplomacy;
+    int totalAssigned = s.allocation().science + s.allocation().industry + s.allocation().trade + s.allocation().diplomacy;
     CHECK(totalAssigned > 0);
     CHECK(s.allocation().idle < 100);
 }
@@ -620,12 +655,7 @@ TEST_CASE("AIController::decideSettlerActions: основывает город �
     p.setId(0);
     p.setRace(makeRace("humans", 1, 1, 1, 1, 1, 1));
 
-    Unit settler = Unit::loadFromJson({
-        {"id", "settler"}, {"name", "Поселенец"},
-        {"stats", {{"health", 10}, {"attack", 0}, {"defense", 1}, {"movementPoints", 2}}},
-        {"tier", 0}, {"requiredBuildingId", ""}, {"recruitCost", 60}, {"populationCost", 80},
-        {"isSettler", true}
-    });
+    Unit settler = Unit::loadFromJson({{"id", "settler"}, {"name", "Поселенец"}, {"stats", {{"health", 10}, {"attack", 0}, {"defense", 1}, {"movementPoints", 2}}}, {"tier", 0}, {"requiredBuildingId", ""}, {"recruitCost", 60}, {"populationCost", 80}, {"isSettler", true}});
     p.addArmy(Army("settler_army", 0, {5, 5}, {settler}));
     state.addPlayer(p);
 
@@ -651,12 +681,7 @@ TEST_CASE("AIController::decideSettlerActions: не основывает гор�
     capital.seedInitialPopulation(50);
     p.addSettlement(capital);
 
-    Unit settler = Unit::loadFromJson({
-        {"id", "settler"}, {"name", "Поселенец"},
-        {"stats", {{"health", 10}, {"attack", 0}, {"defense", 1}, {"movementPoints", 3}}},
-        {"tier", 0}, {"requiredBuildingId", ""}, {"recruitCost", 60}, {"populationCost", 80},
-        {"isSettler", true}
-    });
+    Unit settler = Unit::loadFromJson({{"id", "settler"}, {"name", "Поселенец"}, {"stats", {{"health", 10}, {"attack", 0}, {"defense", 1}, {"movementPoints", 3}}}, {"tier", 0}, {"requiredBuildingId", ""}, {"recruitCost", 60}, {"populationCost", 80}, {"isSettler", true}});
     // Поселенец стоит внутри клеток своей же столицы — здесь основать нельзя.
     p.addArmy(Army("settler_army", 0, {5, 5}, {settler}));
     state.addPlayer(p);
@@ -744,12 +769,7 @@ TEST_CASE("AIController::decideDeployment: поселенцы выводятся
     Settlement s(0, SettlementType::Village);
     s.addTile(Tile(5, 5));
 
-    Unit settler1 = Unit::loadFromJson({
-        {"id", "settler"}, {"name", "Поселенец"},
-        {"stats", {{"health", 10}, {"attack", 0}, {"defense", 1}, {"movementPoints", 2}}},
-        {"tier", 0}, {"requiredBuildingId", ""}, {"recruitCost", 60}, {"populationCost", 80},
-        {"isSettler", true}
-    });
+    Unit settler1 = Unit::loadFromJson({{"id", "settler"}, {"name", "Поселенец"}, {"stats", {{"health", 10}, {"attack", 0}, {"defense", 1}, {"movementPoints", 2}}}, {"tier", 0}, {"requiredBuildingId", ""}, {"recruitCost", 60}, {"populationCost", 80}, {"isSettler", true}});
     s.addToGarrison({settler1, settler1}); // два поселенца одновременно в гарнизоне
     p.addSettlement(s);
     state.addPlayer(p);
