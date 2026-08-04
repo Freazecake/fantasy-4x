@@ -1,4 +1,5 @@
-build/
+[Bb]uild/
+[Bb]in/
 .vscode/
 .cache/
 *.zip
