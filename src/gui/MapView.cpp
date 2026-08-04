@@ -151,7 +151,9 @@ void MapView::renderMap(const Map &map,
                         const std::vector<SettlementMarker> &settlementTiles,
                         const std::vector<Army> &armies,
                         int viewerPlayerId,
-                        const std::map<int, PlayerRelation> &relations)
+                        const std::map<int, PlayerRelation> &relations,
+                        const std::set<std::pair<int, int>> *exploredTiles,
+                        const std::set<std::pair<int, int>> *visibleTiles)
 {
     clearOverlayItems();
     m_scene->clear();
@@ -165,6 +167,10 @@ void MapView::renderMap(const Map &map,
     m_playerRelations = relations;
     m_hoveredCoords = {-9999, -9999};
 
+    m_fogEnabled = exploredTiles != nullptr;
+    m_exploredTiles = exploredTiles ? *exploredTiles : std::set<std::pair<int, int>>();
+    m_visibleTiles = visibleTiles ? *visibleTiles : std::set<std::pair<int, int>>();
+
     m_armies = armies;
 
     const auto &tiles = map.getMap();
@@ -175,16 +181,32 @@ void MapView::renderMap(const Map &map,
     for (const auto &tile : tiles)
     {
         auto c = tile.getCoords();
+        bool explored = !m_fogEnabled || m_exploredTiles.count({c.q, c.r}) > 0;
+        bool visible = !m_fogEnabled || m_visibleTiles.count({c.q, c.r}) > 0;
+
         QPointF center = axialToPixel(c.q, c.r);
         auto *hex = m_scene->addPolygon(hexagonCorners(center));
-        hex->setBrush(tileColor(tile.getType()));
-        hex->setPen(settlementPenFor(c.q, c.r));
+
+        if (!explored)
+        {
+            // Неразведанная клетка — сплошная тьма, без деталей рельефа.
+            hex->setBrush(QColor(12, 12, 14));
+            hex->setPen(QPen(QColor(30, 30, 32), 1));
+        }
+        else
+        {
+            QColor color = tileColor(tile.getType());
+            if (!visible)
+                color = color.darker(180); // разведано, но сейчас вне поля зрения
+            hex->setBrush(color);
+            hex->setPen(settlementPenFor(c.q, c.r));
+        }
 
         m_hexItems[{c.q, c.r}] = hex;
         m_tileTypes[{c.q, c.r}] = tile.getType();
         m_tileResources[{c.q, c.r}] = tile.getResource();
 
-        if (tile.getResource() != ResourceType::None)
+        if (explored && tile.getResource() != ResourceType::None)
         {
             auto *glyph = m_scene->addSimpleText(resourceGlyph(tile.getResource()));
             glyph->setBrush(resourceColor(tile.getResource()));
@@ -254,20 +276,30 @@ void MapView::mouseMoveEvent(QMouseEvent *event)
             auto typeIt = m_tileTypes.find(coords);
             if (typeIt != m_tileTypes.end())
             {
-                QString label = QStringLiteral("%1 (%2, %3)")
-                                     .arg(tileTypeName(typeIt->second))
-                                     .arg(coords.first)
-                                     .arg(coords.second);
-
-                auto resIt = m_tileResources.find(coords);
-                if (resIt != m_tileResources.end() && resIt->second != ResourceType::None)
+                bool explored = !m_fogEnabled || m_exploredTiles.count(coords) > 0;
+                if (!explored)
                 {
-                    const char *rn = resourceName(resIt->second);
-                    if (rn)
-                        label += QStringLiteral(" — ресурс: %1").arg(QString::fromUtf8(rn));
+                    emit tileHovered(QStringLiteral("Неразведано (%1, %2)")
+                                         .arg(coords.first)
+                                         .arg(coords.second));
                 }
+                else
+                {
+                    QString label = QStringLiteral("%1 (%2, %3)")
+                                         .arg(tileTypeName(typeIt->second))
+                                         .arg(coords.first)
+                                         .arg(coords.second);
 
-                emit tileHovered(label);
+                    auto resIt = m_tileResources.find(coords);
+                    if (resIt != m_tileResources.end() && resIt->second != ResourceType::None)
+                    {
+                        const char *rn = resourceName(resIt->second);
+                        if (rn)
+                            label += QStringLiteral(" — ресурс: %1").arg(QString::fromUtf8(rn));
+                    }
+
+                    emit tileHovered(label);
+                }
             }
         }
         m_hoveredCoords = coords;

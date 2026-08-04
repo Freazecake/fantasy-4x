@@ -8,6 +8,9 @@
 #include "Map.hpp"
 #include "Army.hpp"
 #include "Combat.hpp"
+#include "external/json.hpp"
+
+using json = nlohmann::json;
 
 enum class GlobalPhase
 {
@@ -95,10 +98,24 @@ public:
 
     Army *findArmy(const std::string &id);
     MoveResult moveArmy(const std::string &armyId, const Coords &destination);
+    void recomputeVisibility(int visionRadius = FOG_OF_WAR_VISION_RADIUS);
     CombatResult resolveMovementCombat(Army &attacker, const Coords &destination);
 
     bool canFoundSettlementAt(const Coords &center) const;
     FoundSettlementResult foundSettlementFromArmy(const std::string &armyId);
+
+    json toJson() const;
+    static GameState fromJson(const json &j,
+                              const std::vector<Race> &raceCatalog,
+                              const std::vector<Hero> &heroCatalog,
+                              const std::vector<Technology> &techCatalog,
+                              const std::vector<Building> &buildingCatalog,
+                              const std::vector<Unit> &unitCatalog);
+
+    void setTurnNumber(int turn) { m_turnNumber = turn; }
+    void setPhase(GlobalPhase phase) { m_globalPhase = phase; }
+    void setVassalizations(const std::unordered_map<int, int> &v) { m_vassalizations = v; }
+    void setPoliticalConquestWinnerId(int id) { m_politicalConquestWinnerId = id; }
 
 private:
     std::string settlementFoundingBlockReason(const Coords &center) const;

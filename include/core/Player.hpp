@@ -1,7 +1,9 @@
 #pragma once
 
+#include <set>
 #include <string>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "Race.hpp"
@@ -14,7 +16,10 @@
 #include "Military.hpp"
 #include "Army.hpp"
 
+class Map;
+
 inline constexpr float DEFAULT_BASE_GROWTH_RATE = 0.1f;
+inline constexpr int FOG_OF_WAR_VISION_RADIUS = 3;
 
 enum class PersonalPhase
 {
@@ -38,6 +43,8 @@ private:
     std::vector<Technology> m_technologies;
     std::string m_currentResearchId;
     std::unordered_set<std::string> m_researchedTechIds;
+    std::set<std::pair<int, int>> m_exploredTiles;
+    std::set<std::pair<int, int>> m_visibleTiles;
 
 public:
     Player();
@@ -78,6 +85,7 @@ public:
 
     void loadTechnologies(const std::vector<Technology> &catalog) { m_technologies = catalog; }
     const std::vector<Technology> &technologies() const { return m_technologies; }
+    std::vector<Technology> &technologies() { return m_technologies; }
     const std::string &currentResearchId() const { return m_currentResearchId; }
     const std::unordered_set<std::string> &researchedTechIds() const { return m_researchedTechIds; }
     bool hasResearched(const std::string &techId) const { return m_researchedTechIds.count(techId) > 0; }
@@ -107,8 +115,27 @@ public:
     Army detachArmy(Settlement &from, const std::vector<std::string> &unitIds);
     void disbandArmyIntoSettlement(Army &army, Settlement &target);
 
+    bool isExplored(const Coords &c) const { return m_exploredTiles.count({c.q, c.r}) > 0; }
+    bool isVisible(const Coords &c) const { return m_visibleTiles.count({c.q, c.r}) > 0; }
+    const std::set<std::pair<int, int>> &exploredTiles() const { return m_exploredTiles; }
+    const std::set<std::pair<int, int>> &visibleTiles() const { return m_visibleTiles; }
+    void recomputeVisibility(const Map &map, int visionRadius = FOG_OF_WAR_VISION_RADIUS);
+
     bool operator==(const Player &other) const
     {
         return this->m_id == other.m_id;
+    }
+
+    void restoreResearchState(const std::string &currentResearchId,
+                              const std::unordered_set<std::string> &researchedIds)
+    {
+        m_currentResearchId = currentResearchId;
+        m_researchedTechIds = researchedIds;
+    }
+    void restoreVisibility(const std::set<std::pair<int, int>> &explored,
+                           const std::set<std::pair<int, int>> &visible)
+    {
+        m_exploredTiles = explored;
+        m_visibleTiles = visible;
     }
 };

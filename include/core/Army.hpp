@@ -40,6 +40,13 @@ public:
     void resetMovement();
     void moveTo(const Coords &dest, int cost);
 
+    void setMovementPointsRemaining(int pointsRemaining, int maxPoints)
+    {
+        if (pointsRemaining > maxPoints)
+            m_movementPointsRemaining = maxPoints;
+        else
+            m_movementPointsRemaining = pointsRemaining;
+    }
     void applyCasualties(const std::vector<Unit> &survivors) { m_units = survivors; }
     void addUnits(const std::vector<Unit> &units)
     {

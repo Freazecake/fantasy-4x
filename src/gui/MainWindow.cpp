@@ -17,6 +17,7 @@
 #include <QWidget>
 #include <QApplication>
 #include <QMessageBox>
+#include <QFileDialog>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -28,6 +29,12 @@ MainWindow::MainWindow(QWidget *parent)
     auto *gameMenu = menuBar->addMenu(QStringLiteral("Игра"));
     auto *endTurnAction = gameMenu->addAction(QStringLiteral("Завершить ход"));
     connect(endTurnAction, &QAction::triggered, this, &MainWindow::onEndTurn);
+
+    gameMenu->addSeparator();
+    auto *saveAction = gameMenu->addAction(QStringLiteral("Сохранить..."));
+    connect(saveAction, &QAction::triggered, this, &MainWindow::onSaveGame);
+    auto *loadAction = gameMenu->addAction(QStringLiteral("Загрузить..."));
+    connect(loadAction, &QAction::triggered, this, &MainWindow::onLoadGame);
 
     m_startMenu = new StartMenuWidget(this);
     connect(m_startMenu, &StartMenuWidget::newGameRequested, this, &MainWindow::onNewGame);
@@ -56,6 +63,11 @@ QWidget *MainWindow::buildGameView()
     auto *rightLayout = new QVBoxLayout(rightPanel);
     rightLayout->setContentsMargins(4, 4, 4, 4);
 
+    // Кнопки-переключатели вместо одновременного показа обеих панелей —
+    // раньше SettlementPanel и TechTreePanel были видны сразу вдвоём (через
+    // QSplitter), из-за чего вместе с длинными списками построек/техов
+    // правая часть требовала намного больше места, чем ей отводил
+    // stretch-фактор, и карта слева сжималась до минимума.
     auto *toggleRow = new QWidget(rightPanel);
     auto *toggleLayout = new QHBoxLayout(toggleRow);
     toggleLayout->setContentsMargins(0, 0, 0, 0);
@@ -86,6 +98,10 @@ QWidget *MainWindow::buildGameView()
     legendLayout->addStretch();
     rightLayout->addWidget(legendRow);
 
+    // Каждая панель — в своём QScrollArea: если список построек/техов не
+    // помещается по высоте, скроллится содержимое ВНУТРИ панели, а не
+    // раздувает окно целиком (это и было причиной, что кнопка конца хода
+    // улетала за нижний край экрана).
     auto *panelStack = new QStackedWidget(rightPanel);
 
     auto *settlementScroll = new QScrollArea(rightPanel);
@@ -98,7 +114,10 @@ QWidget *MainWindow::buildGameView()
     techScroll->setWidget(m_techTreePanel);
     panelStack->addWidget(techScroll);
 
-    rightLayout->addWidget(panelStack, 1);
+    rightLayout->addWidget(panelStack, /*stretch=*/1);
+    // TurnPanel — намеренно ВНЕ QStackedWidget/QScrollArea выше: сводка
+    // ресурсов, список армий и кнопка "Конец хода" должны быть видны всегда,
+    // независимо от того, что происходит в переключаемых панелях.
     rightLayout->addWidget(m_turnPanel);
 
     connect(settlementToggle, &QPushButton::clicked, this, [=]()
@@ -115,6 +134,9 @@ QWidget *MainWindow::buildGameView()
     centralSplitter->addWidget(rightPanel);
     centralSplitter->setStretchFactor(0, 1);
     centralSplitter->setStretchFactor(1, 0);
+    // Явные стартовые размеры — без этого QSplitter отталкивается от
+    // минимальных размеров содержимого правой панели, а не от stretch-
+    // факторов, и карта при первом запуске получала едва ли четверть окна.
     centralSplitter->setSizes({700, 300});
 
     connect(m_turnPanel, &TurnPanel::endTurnClicked, this, &MainWindow::onEndTurn);
@@ -206,6 +228,8 @@ Settlement *MainWindow::selectedHumanSettlement(Player &human)
         }
     }
 
+    // Выбранное поселение не найдено (ещё не выбирали, или было потеряно) —
+    // переключаемся на первое оставшееся своё поселение.
     Settlement &fallback = human.settlements().front();
     m_selectedSettlementAnchor = fallback.anchorCoords();
     m_hasSelectedSettlement = true;
@@ -227,28 +251,81 @@ void MainWindow::onNewGame()
     statusBar()->showMessage(QStringLiteral("Партия начата"), 3000);
 }
 
+void MainWindow::onSaveGame()
+{
+    QString path = QFileDialog::getSaveFileName(
+        this, QStringLiteral("Сохранить партию"), QString(),
+        QStringLiteral("Файлы сохранений (*.json)"));
+    if (path.isEmpty())
+        return;
+
+    if (!path.endsWith(QStringLiteral(".json"), Qt::CaseInsensitive))
+        path += QStringLiteral(".json");
+
+    if (m_engine.saveGame(path.toStdString()))
+        statusBar()->showMessage(QStringLiteral("Партия сохранена: %1").arg(path), 5000);
+    else
+        QMessageBox::warning(this, QStringLiteral("Ошибка"),
+                             QStringLiteral("Не удалось сохранить партию в %1").arg(path));
+}
+
+void MainWindow::onLoadGame()
+{
+    QString path = QFileDialog::getOpenFileName(
+        this, QStringLiteral("Загрузить партию"), QString(),
+        QStringLiteral("Файлы сохранений (*.json)"));
+    if (path.isEmpty())
+        return;
+
+    if (!m_engine.loadGame(path.toStdString(), ASSETS_DIR))
+    {
+        QMessageBox::warning(this, QStringLiteral("Ошибка"),
+                             QStringLiteral("Не удалось загрузить партию из %1").arg(path));
+        return;
+    }
+
+    m_hasSelectedSettlement = false;
+    m_selectedArmyId.clear();
+    m_mapView->clearSelection();
+    refreshAllPanels();
+    m_stack->setCurrentIndex(1);
+    statusBar()->showMessage(QStringLiteral("Партия загружена: %1").arg(path), 5000);
+}
+
 MainWindow::~MainWindow() {}
 
 void MainWindow::refreshAllPanels()
 {
     Player &human = m_engine.state().players()[0];
 
+    // На карте нужно видеть ВСЕХ игроков — иначе чужие поселения/армии
+    // просто не существуют для человека, и атаковать/оценивать обстановку
+    // невозможно. В панели управления (updateArmyList) по-прежнему только
+    // свои армии — чужими командовать нельзя, только видеть их на карте.
     std::vector<SettlementMarker> settlementTiles;
     std::vector<Army> allPlayersArmies;
     std::map<int, PlayerRelation> relations;
     const auto &vassalizations = m_engine.state().vassalizations();
     for (const auto &p : m_engine.state().players())
     {
+        bool isSelf = (p.id() == human.id());
+
         for (const auto &s : p.settlements())
         {
             for (const auto &t : s.tiles())
             {
                 auto c = t.getCoords();
-                settlementTiles.push_back({c.q, c.r, p.id()});
+                // Чужое поселение показываем только в зоне видимости
+                // человека (блок 3.6, туман войны); своё — всегда.
+                if (isSelf || human.isVisible(c))
+                    settlementTiles.push_back({c.q, c.r, p.id()});
             }
         }
         for (const auto &a : p.armies())
-            allPlayersArmies.push_back(a);
+        {
+            if (isSelf || human.isVisible(a.position()))
+                allPlayersArmies.push_back(a);
+        }
 
         if (p.id() == human.id())
         {
@@ -271,8 +348,10 @@ void MainWindow::refreshAllPanels()
     }
 
     m_mapView->clearReachableTiles();
-    m_mapView->renderMap(m_engine.state().map(), settlementTiles, allPlayersArmies, human.id(), relations);
+    m_mapView->renderMap(m_engine.state().map(), settlementTiles, allPlayersArmies, human.id(), relations,
+                         &human.exploredTiles(), &human.visibleTiles());
     m_turnPanel->updateArmyList(human.armies());
+    m_turnPanel->updateHeroList(human.heroes(), QString::fromStdString(human.race().getName()));
 
     Settlement *selected = selectedHumanSettlement(human);
     if (selected)

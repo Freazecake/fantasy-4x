@@ -69,6 +69,8 @@ static Player createPlayer(int id, bool isHuman, const Race &race,
 
 bool GameEngine::loadFromAssets(const std::string &assetsDir, unsigned int mapSeed)
 {
+    m_assetsDir = assetsDir;
+
     json racesJson = loadFile(assetsDir + "/races.json");
     json buildingsJson = loadFile(assetsDir + "/buildings.json");
     json techJson = loadFile(assetsDir + "/technologies.json");
@@ -106,6 +108,8 @@ bool GameEngine::loadFromAssets(const std::string &assetsDir, unsigned int mapSe
     };
 
     auto allHeroes = Hero::loadAllFromJson(heroesJson["heroes"]);
+    m_raceCatalog = allRaces;
+    m_heroCatalog = allHeroes;
 
     Unit startingUnit = m_unitCatalog.front();
     for (const auto &u : m_unitCatalog)
@@ -145,6 +149,7 @@ bool GameEngine::loadFromAssets(const std::string &assetsDir, unsigned int mapSe
     }
 
     m_state.setMap(gameMap);
+    m_state.recomputeVisibility();
 
     return true;
 }
@@ -256,4 +261,29 @@ void GameEngine::endTurn()
 
     m_state.updatePhase();
     m_state.nextTurn();
+    m_state.recomputeVisibility();
+}
+
+bool GameEngine::saveGame(const std::string &path) const
+{
+    json j = m_state.toJson();
+    std::ofstream file(path);
+    if (!file.is_open())
+        return false;
+    file << j.dump(2);
+    return file.good();
+}
+
+bool GameEngine::loadGame(const std::string &path, const std::string &assetsDir)
+{
+    if (!loadFromAssets(assetsDir))
+        return false;
+
+    json j = loadFile(path);
+    if (j.is_null())
+        return false;
+
+    m_state = GameState::fromJson(j, m_raceCatalog, m_heroCatalog, m_techCatalog,
+                                  m_buildingCatalog, m_unitCatalog);
+    return true;
 }

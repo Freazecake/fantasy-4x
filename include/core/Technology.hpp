@@ -42,4 +42,11 @@ public:
     int invest(int points);
     int remainingCost() const { return std::max(0, m_scienceCost - m_scienceInvested); }
     float progress() const { return m_scienceCost > 0 ? float(m_scienceInvested) / m_scienceCost : 1.0f; }
+
+    void restoreProgress(bool researched, int scienceInvested)
+    {
+        m_isResearched = researched;
+        m_scienceInvested = scienceInvested;
+    }
+    int scienceInvested() const { return m_scienceInvested; }
 };

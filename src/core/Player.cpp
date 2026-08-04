@@ -1,5 +1,5 @@
 #include "core/Player.hpp"
-
+#include "core/Map.hpp"
 #include <algorithm>
 
 Player::Player() {}
@@ -116,6 +116,10 @@ float Player::effectiveTradeMultiplier() const
     for (const auto &hero : m_heroes)
         multiplier *= hero.getModifiers().trade;
 
+    for (const auto &settlement : m_settlements)
+        for (const auto &building : settlement.builtBuildings())
+            multiplier *= building.getModifiers().trade;
+
     if (m_allianceBonus)
         multiplier *= 1.2;
 
@@ -213,4 +217,34 @@ void Player::removeArmy(const std::string &id)
             return;
         }
     }
+}
+
+void Player::recomputeVisibility(const Map &map, int visionRadius)
+{
+    m_visibleTiles.clear();
+
+    std::vector<Coords> centers;
+    for (const auto &s : m_settlements)
+        centers.push_back(s.anchorCoords());
+    for (const auto &a : m_armies)
+        centers.push_back(a.position());
+
+    if (centers.empty())
+        return;
+
+    for (const auto &tile : map.getMap())
+    {
+        Coords c = tile.getCoords();
+        for (const auto &center : centers)
+        {
+            if (center.distanceTo(c) <= visionRadius)
+            {
+                m_visibleTiles.insert({c.q, c.r});
+                break;
+            }
+        }
+    }
+
+    for (const auto &v : m_visibleTiles)
+        m_exploredTiles.insert(v);
 }

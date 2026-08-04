@@ -148,4 +148,18 @@ public:
     {
         return this == &other;
     }
+
+    void restoreFromSave(int populationCount, const PopulationAllocation &allocation,
+                         const std::vector<Building> &builtBuildings,
+                         const std::vector<BuildingQueueItem> &buildingQueue,
+                         const std::vector<Unit> &garrison,
+                         const std::vector<RecruitmentItem> &recruitmentQueue)
+    {
+        m_populationCount = populationCount;
+        m_population = allocation;
+        m_builtBuildings = builtBuildings;
+        m_buildingQueue = buildingQueue;
+        m_garrison = garrison;
+        m_recruitmentQueue = recruitmentQueue;
+    }
 };

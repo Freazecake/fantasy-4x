@@ -9,6 +9,8 @@
 #include "Unit.hpp"
 #include "PoliticalAction.hpp"
 #include "ResourceCatalog.hpp"
+#include "Race.hpp"
+#include "Hero.hpp"
 #include "ai/AIController.hpp"
 
 class GameEngine
@@ -20,12 +22,18 @@ private:
     std::vector<Unit> m_unitCatalog;
     std::vector<PoliticalAction> m_politicalActionCatalog;
     std::vector<ResourceDef> m_resourceCatalog;
+    std::vector<Race> m_raceCatalog;
+    std::vector<Hero> m_heroCatalog;
+    std::string m_assetsDir;
 
 public:
     bool loadFromAssets(const std::string &assetsDir, unsigned int mapSeed = 0);
     void endTurn();
     std::string applyPoliticalAction(int playerId, const std::string &actionId, int targetId);
     VictoryResult checkVictoryCondition() const { return m_state.checkVictory(); }
+
+    bool saveGame(const std::string &path) const;
+    bool loadGame(const std::string &path, const std::string &assetsDir);
 
     const GameState &state() const { return m_state; }
     GameState &state() { return m_state; }
@@ -35,4 +43,6 @@ public:
     const std::vector<Unit> &unitCatalog() const { return m_unitCatalog; }
     const std::vector<PoliticalAction> &politicalActionCatalog() const { return m_politicalActionCatalog; }
     const std::vector<ResourceDef> &resourceCatalog() const { return m_resourceCatalog; }
+    const std::vector<Race> &raceCatalog() const { return m_raceCatalog; }
+    const std::vector<Hero> &heroCatalog() const { return m_heroCatalog; }
 };

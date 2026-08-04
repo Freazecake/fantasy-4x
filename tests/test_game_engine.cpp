@@ -213,3 +213,118 @@ TEST_CASE("GameEngine::loadFromAssets: на клетках стартовых с
         }
     }
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// Блок 3.7: сохранение/загрузка
+// ═══════════════════════════════════════════════════════════════════════
+
+TEST_CASE("GameEngine::saveGame/loadGame: round-trip после нескольких ходов "
+          "сохраняет ключевые поля партии")
+{
+    GameEngine engine;
+    CHECK(engine.loadFromAssets(ASSETS_DIR, 777));
+
+    for (int i = 0; i < 3; ++i)
+        engine.endTurn();
+
+    std::string path = "/tmp/test_save_roundtrip.json";
+    CHECK(engine.saveGame(path));
+
+    GameEngine loaded;
+    CHECK(loaded.loadGame(path, ASSETS_DIR));
+
+    CHECK(loaded.state().turnNumber() == engine.state().turnNumber());
+    CHECK(loaded.state().map().getMap().size() == engine.state().map().getMap().size());
+    CHECK(loaded.state().players().size() == engine.state().players().size());
+
+    for (size_t i = 0; i < engine.state().players().size(); ++i)
+    {
+        const Player &orig = engine.state().players()[i];
+        const Player &rest = loaded.state().players()[i];
+
+        CHECK(rest.id() == orig.id());
+        CHECK(rest.isHuman() == orig.isHuman());
+        CHECK(rest.race().getId() == orig.race().getId());
+        CHECK(rest.settlements().size() == orig.settlements().size());
+        CHECK(rest.armies().size() == orig.armies().size());
+
+        CHECK_NEAR(rest.resources().science, orig.resources().science, 0.01f);
+        CHECK_NEAR(rest.resources().industry, orig.resources().industry, 0.01f);
+        CHECK_NEAR(rest.resources().trade, orig.resources().trade, 0.01f);
+        CHECK_NEAR(rest.resources().diplomacy, orig.resources().diplomacy, 0.01f);
+
+        for (size_t s = 0; s < orig.settlements().size(); ++s)
+        {
+            CHECK(rest.settlements()[s].populationCount() == orig.settlements()[s].populationCount());
+            CHECK(rest.settlements()[s].tiles().size() == orig.settlements()[s].tiles().size());
+            CHECK(rest.settlements()[s].garrison().size() == orig.settlements()[s].garrison().size());
+            CHECK(rest.settlements()[s].type() == orig.settlements()[s].type());
+        }
+
+        for (size_t a = 0; a < orig.armies().size(); ++a)
+        {
+            CHECK(rest.armies()[a].position().q == orig.armies()[a].position().q);
+            CHECK(rest.armies()[a].position().r == orig.armies()[a].position().r);
+            CHECK(rest.armies()[a].units().size() == orig.armies()[a].units().size());
+        }
+    }
+}
+
+TEST_CASE("GameEngine::saveGame/loadGame: round-trip сразу после старта партии (0 ходов)")
+{
+    GameEngine engine;
+    CHECK(engine.loadFromAssets(ASSETS_DIR, 42));
+
+    std::string path = "/tmp/test_save_turn0.json";
+    CHECK(engine.saveGame(path));
+
+    GameEngine loaded;
+    CHECK(loaded.loadGame(path, ASSETS_DIR));
+
+    CHECK(loaded.state().turnNumber() == 0);
+    CHECK(loaded.state().players().size() == engine.state().players().size());
+    for (size_t i = 0; i < engine.state().players().size(); ++i)
+    {
+        CHECK(loaded.state().players()[i].settlements().size() ==
+              engine.state().players()[i].settlements().size());
+        // Гарнизон стартовой столицы (один юнит) должен восстановиться как есть.
+        if (!engine.state().players()[i].settlements().empty())
+        {
+            CHECK(loaded.state().players()[i].settlements()[0].garrison().size() ==
+                  engine.state().players()[i].settlements()[0].garrison().size());
+        }
+    }
+}
+
+TEST_CASE("GameEngine::saveGame/loadGame: сохранённая карта восстанавливает тип клетки и ресурс")
+{
+    GameEngine engine;
+    CHECK(engine.loadFromAssets(ASSETS_DIR, 555));
+
+    std::string path = "/tmp/test_save_map.json";
+    CHECK(engine.saveGame(path));
+
+    GameEngine loaded;
+    CHECK(loaded.loadGame(path, ASSETS_DIR));
+
+    const auto &origTiles = engine.state().map().getMap();
+    const auto &loadedTiles = loaded.state().map().getMap();
+    CHECK(origTiles.size() == loadedTiles.size());
+
+    for (const auto &ot : origTiles)
+    {
+        const Tile *lt = loaded.state().map().tileAt(ot.getCoords().q, ot.getCoords().r);
+        CHECK(lt != nullptr);
+        if (lt)
+        {
+            CHECK(lt->getType() == ot.getType());
+            CHECK(lt->getResource() == ot.getResource());
+        }
+    }
+}
+
+TEST_CASE("GameEngine::loadGame: несуществующий файл — false, не падает")
+{
+    GameEngine engine;
+    CHECK(!engine.loadGame("/tmp/this_save_definitely_does_not_exist_12345.json", ASSETS_DIR));
+}

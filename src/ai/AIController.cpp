@@ -285,6 +285,7 @@ void AIController::decidePoliticalAction(Player &p, const std::vector<PoliticalA
         state.applyVassalize(p.id(), best->targetId);
         break;
     case PoliticalActionType::PoliticalConquest:
+        state.applyPoliticalConquest(p.id(), best->targetId);
         break;
     }
 }
