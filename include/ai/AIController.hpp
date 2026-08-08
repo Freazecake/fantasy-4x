@@ -17,9 +17,11 @@ public:
     static void decideRecruitment(Settlement &s, const std::vector<Unit> &catalog, GlobalPhase phase);
     static void decidePoliticalAction(Player &p, const std::vector<PoliticalAction> &catalog, GameState &state);
     static void decideMilitaryActions(Player &p, GameState &state, GlobalPhase phase);
-    static void decideTradeExchange(Player &p, GlobalPhase phase);
+    static void decideDeployment(Player &p);
+    static void decideTradeExchange(Player &p, GameState &state, GlobalPhase phase);
     static void decideSettlerActions(Player &p, GameState &state, GlobalPhase phase);
+
+private:
     static void pursueNearestEnemy(Player &p, GameState &state, Army &mine,
                                    const std::string &armyId, const std::vector<Coords> &occupied);
-    static void decideDeployment(Player &p);
 };

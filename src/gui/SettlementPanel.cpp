@@ -52,21 +52,26 @@ void SettlementPanel::setupUi() {
 
     m_scienceSpin = new QSpinBox(allocGroup);
     m_scienceSpin->setRange(0, 9999);
+    m_scienceSpin->setToolTip(QStringLiteral("Население в науке двигает исследование технологий."));
     allocLayout->addRow(QStringLiteral("Наука:"), m_scienceSpin);
 
     m_industrySpin = new QSpinBox(allocGroup);
     m_industrySpin->setRange(0, 9999);
+    m_industrySpin->setToolTip(QStringLiteral("Население в промышленности идёт на постройки и найм войск."));
     allocLayout->addRow(QStringLiteral("Промышленность:"), m_industrySpin);
 
     m_tradeSpin = new QSpinBox(allocGroup);
     m_tradeSpin->setRange(0, 9999);
+    m_tradeSpin->setToolTip(QStringLiteral("Накопленную торговлю можно обменять на другой ресурс через рынок."));
     allocLayout->addRow(QStringLiteral("Торговля:"), m_tradeSpin);
 
     m_diplomacySpin = new QSpinBox(allocGroup);
     m_diplomacySpin->setRange(0, 9999);
+    m_diplomacySpin->setToolTip(QStringLiteral("Дипломатия тратится на политические действия: союз, вассалитет, дань, поглощение."));
     allocLayout->addRow(QStringLiteral("Дипломатия:"), m_diplomacySpin);
 
     m_idleLabel = new QLabel(QStringLiteral("Свободно: 0"), allocGroup);
+    m_idleLabel->setToolTip(QStringLiteral("Незанятое население — например, чтобы набрать войска (найм тоже расходует население)."));
     allocLayout->addRow(m_idleLabel);
 
     m_applyBtn = new QPushButton(QStringLiteral("Применить"), allocGroup);

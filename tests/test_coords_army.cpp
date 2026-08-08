@@ -434,6 +434,10 @@ TEST_CASE("GameState::foundSettlementFromArmy: успешное основани
     CHECK(after.settlements()[0].tiles().size() == 9u); // площадка 3x3
     CHECK(after.settlements()[0].anchorCoords().q == 4);
     CHECK(after.settlements()[0].anchorCoords().r == 4);
+
+    CHECK(state.turnEvents().size() == 1u);
+    CHECK(state.turnEvents()[0].type == TurnEventType::CityFounded);
+    CHECK(state.turnEvents()[0].actorId == 0);
 }
 
 TEST_CASE("GameState::foundSettlementFromArmy: у края карты площадка обрезается, но основание проходит")

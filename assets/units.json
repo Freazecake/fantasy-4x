@@ -43,6 +43,62 @@
             "populationCost": 20
         },
         {
+            "id": "cavalry",
+            "name": "Конница",
+            "stats": {
+                "health": 28.0,
+                "attack": 9.0,
+                "defense": 3.0,
+                "movementPoints": 4
+            },
+            "tier": 1,
+            "requiredBuildingId": "stable",
+            "recruitCost": 35,
+            "populationCost": 55
+        },
+        {
+            "id": "knight",
+            "name": "Рыцарь",
+            "stats": {
+                "health": 45.0,
+                "attack": 12.0,
+                "defense": 9.0,
+                "movementPoints": 2
+            },
+            "tier": 2,
+            "requiredBuildingId": "war_academy",
+            "recruitCost": 55,
+            "populationCost": 70
+        },
+        {
+            "id": "berserker",
+            "name": "Берсерк",
+            "stats": {
+                "health": 40.0,
+                "attack": 16.0,
+                "defense": 4.0,
+                "movementPoints": 3
+            },
+            "tier": 2,
+            "requiredBuildingId": "war_academy",
+            "recruitCost": 55,
+            "populationCost": 70
+        },
+        {
+            "id": "siege",
+            "name": "Осадное орудие",
+            "stats": {
+                "health": 30.0,
+                "attack": 22.0,
+                "defense": 2.0,
+                "movementPoints": 1
+            },
+            "tier": 3,
+            "requiredBuildingId": "siege_workshop",
+            "recruitCost": 80,
+            "populationCost": 90
+        },
+        {
             "id": "settler",
             "name": "Поселенец",
             "stats": {

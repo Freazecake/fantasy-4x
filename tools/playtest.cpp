@@ -10,8 +10,10 @@
 // seed 1000). Отчёт печатается в консоль.
 
 #include "core/GameEngine.hpp"
+#include "core/StartLayout.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cstdlib>
 #include <iomanip>
 #include <iostream>
@@ -31,12 +33,16 @@ struct GameStats
     int aliveAtTimeout = -1;
 };
 
-GameStats playOneGame(unsigned int mapSeed, int maxTurns)
+GameStats playOneGame(unsigned int mapSeed, int maxTurns, int mapWidth, int mapHeight)
 {
     GameEngine engine;
     GameStats stats;
 
-    if (!engine.loadFromAssets(ASSETS_DIR, mapSeed))
+    GameStartOptions options;
+    options.mapWidth = mapWidth;
+    options.mapHeight = mapHeight;
+
+    if (!engine.loadFromAssets(ASSETS_DIR, options, mapSeed))
     {
         stats.victoryType = "load_error";
         return stats;
@@ -96,16 +102,21 @@ int main(int argc, char **argv)
     int numGames = argc > 1 ? std::atoi(argv[1]) : 30;
     int maxTurns = argc > 2 ? std::atoi(argv[2]) : 200;
     unsigned int baseSeed = argc > 3 ? static_cast<unsigned int>(std::atoi(argv[3])) : 1000u;
+    int mapWidth = argc > 4 ? std::atoi(argv[4]) : StartLayout::MAP_WIDTH;
+    int mapHeight = argc > 5 ? std::atoi(argv[5]) : StartLayout::MAP_HEIGHT;
 
     std::vector<GameStats> results;
     results.reserve(numGames);
 
     std::cout << "Прогон " << numGames << " партий (maxTurns=" << maxTurns
-              << ", baseSeed=" << baseSeed << ")...\n";
+              << ", baseSeed=" << baseSeed << ", карта=" << mapWidth << "x" << mapHeight << ")...\n";
+
+    auto startTime = std::chrono::steady_clock::now();
 
     for (int i = 0; i < numGames; ++i)
     {
-        GameStats stats = playOneGame(baseSeed + static_cast<unsigned int>(i), maxTurns);
+        GameStats stats = playOneGame(baseSeed + static_cast<unsigned int>(i), maxTurns,
+                                      mapWidth, mapHeight);
         results.push_back(stats);
         std::cout << "  партия " << (i + 1) << "/" << numGames
                   << ": ход=" << stats.turns
@@ -160,6 +171,10 @@ int main(int argc, char **argv)
 
     int finished = militaryWins + politicalWins;
 
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::steady_clock::now() - startTime)
+                        .count();
+
     std::cout << "\n========== ОТЧЁТ О БАЛАНСЕ ==========\n";
     std::cout << "Всего партий:              " << numGames << "\n";
     std::cout << "Завершились победой:       " << finished
@@ -176,6 +191,9 @@ int main(int argc, char **argv)
     std::cout << "Средняя длительность:      " << std::setprecision(1) << avgTurns << " ходов\n";
     std::cout << "Медианная длительность:    " << medTurns << " ходов\n";
     std::cout << "Средний размер победителя: " << avgWinnerSettlements << " городов\n";
+    std::cout << "Время прогона:             " << elapsed << " мс (" << std::fixed
+              << std::setprecision(1) << (numGames > 0 ? static_cast<double>(elapsed) / numGames : 0.0)
+              << " мс/партия)\n";
     std::cout << "======================================\n";
 
     return 0;

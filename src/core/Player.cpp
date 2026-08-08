@@ -1,6 +1,5 @@
 #include "core/Player.hpp"
 #include "core/Map.hpp"
-#include <algorithm>
 
 Player::Player() {}
 

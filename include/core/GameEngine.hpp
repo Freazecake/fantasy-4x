@@ -11,7 +11,16 @@
 #include "ResourceCatalog.hpp"
 #include "Race.hpp"
 #include "Hero.hpp"
+#include "StartLayout.hpp"
 #include "ai/AIController.hpp"
+
+struct GameStartOptions
+{
+    std::string humanRaceId = "humans";
+    int numBots = 4;
+    int mapWidth = StartLayout::MAP_WIDTH;
+    int mapHeight = StartLayout::MAP_HEIGHT;
+};
 
 class GameEngine
 {
@@ -27,7 +36,12 @@ private:
     std::string m_assetsDir;
 
 public:
-    bool loadFromAssets(const std::string &assetsDir, unsigned int mapSeed = 0);
+    bool loadFromAssets(const std::string &assetsDir, unsigned int mapSeed = 0)
+    {
+        return loadFromAssets(assetsDir, GameStartOptions{}, mapSeed);
+    }
+    bool loadFromAssets(const std::string &assetsDir, const GameStartOptions &options,
+                        unsigned int mapSeed = 0);
     void endTurn();
     std::string applyPoliticalAction(int playerId, const std::string &actionId, int targetId);
     VictoryResult checkVictoryCondition() const { return m_state.checkVictory(); }

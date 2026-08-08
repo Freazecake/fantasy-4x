@@ -24,6 +24,7 @@ private slots:
     void onNewGame();
     void onSaveGame();
     void onLoadGame();
+    void onShowRules();
     void onArmySelected(const std::string &armyId);
     void onArmyMoveRequested(const std::string &armyId, int q, int r);
     void onSelectionCleared();
@@ -35,9 +36,6 @@ private:
     QWidget *buildGameView();
     void refreshAllPanels();
     void showVictoryDialog(const VictoryResult &v);
-    // Возвращает поселение человека, выбранное для показа в SettlementPanel.
-    // Если ранее выбранное поселение исчезло (захвачено врагом), переключает
-    // выбор на первое оставшееся своё поселение.
     Settlement *selectedHumanSettlement(Player &human);
     void selectSettlement(const Settlement &settlement);
 

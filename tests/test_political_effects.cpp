@@ -126,6 +126,12 @@ TEST_CASE("GameState::newAlliance: создаёт альянс и ставит �
     CHECK(state.alliances()[0].expiryTurn == 10);
     CHECK(state.players()[0].allianceBonus());
     CHECK(state.players()[1].allianceBonus());
+
+    // Блок 3.14: действие должно оставить след в отчёте о ходе.
+    CHECK(state.turnEvents().size() == 1u);
+    CHECK(state.turnEvents()[0].type == TurnEventType::AllianceFormed);
+    CHECK(state.turnEvents()[0].actorId == 0);
+    CHECK(state.turnEvents()[0].targetId == 1);
 }
 
 TEST_CASE("GameState::checkAlliances: не удаляет активный альянс")
@@ -204,6 +210,9 @@ TEST_CASE("GameState::applyDemandTribute: передаёт 30% ресурсов 
     // Цель потеряла 30%
     CHECK_NEAR(f.state.players()[1].resources().science, expectedRemaining, 0.1f);
     CHECK_NEAR(f.state.players()[1].resources().industry, 20.0f * 0.7f, 0.1f);
+
+    CHECK(f.state.turnEvents().size() == 1u);
+    CHECK(f.state.turnEvents()[0].type == TurnEventType::TributeDemanded);
 }
 
 TEST_CASE("GameState::applyDemandTribute: не падает если цель не найдена")
@@ -230,6 +239,11 @@ TEST_CASE("GameState::applyVassalize: записывает вассалитет"
 
     CHECK(state.vassalizations().size() == 1u);
     CHECK(state.vassalizations().at(1) == 0);
+
+    CHECK(state.turnEvents().size() == 1u);
+    CHECK(state.turnEvents()[0].type == TurnEventType::Vassalized);
+    CHECK(state.turnEvents()[0].actorId == 0);
+    CHECK(state.turnEvents()[0].targetId == 1);
 }
 
 TEST_CASE("GameState::processVassalage: передаёт 30% накопленных ресурсов вассала хозяину")
@@ -287,6 +301,12 @@ TEST_CASE("GameState::applyPoliticalConquest: поселения цели пер
     CHECK(state.players()[0].settlements().size() == 4u); // 2 своих + 2 цели
     for (const auto &s : state.players()[0].settlements())
         CHECK(s.ownerId() == 0);
+
+    bool hasAbsorbed = false;
+    for (const auto &ev : state.turnEvents())
+        if (ev.type == TurnEventType::Absorbed && ev.actorId == 0 && ev.targetId == 1)
+            hasAbsorbed = true;
+    CHECK(hasAbsorbed);
 }
 
 TEST_CASE("GameState::applyPoliticalConquest: ресурсы цели переходят завоевателю")
@@ -423,6 +443,82 @@ TEST_CASE("GameState::checkVictory: military — 1 живой из 2 → поб�
     CHECK(v.hasWinner());
     CHECK(v.winnerId == 0);
     CHECK(v.type == "military");
+}
+
+// --- Блок 2.14: победа через вассалитет ---
+
+TEST_CASE("GameState::checkVictory: 100% контроль через вассала — победа (тип political)")
+{
+    GameState state;
+
+    Player master;
+    master.setId(0);
+    Settlement sm(0, SettlementType::Village);
+    sm.seedInitialPopulation(10);
+    master.addSettlement(sm);
+    state.addPlayer(master);
+
+    Player vassal;
+    vassal.setId(1);
+    Settlement sv(1, SettlementType::Village);
+    sv.seedInitialPopulation(10);
+    vassal.addSettlement(sv);
+    state.addPlayer(vassal);
+
+    // Без вассалитета оба "живы" — победы нет вообще.
+    CHECK(!state.checkVictory().hasWinner());
+
+    state.applyVassalize(0, 1);
+
+    VictoryResult v2 = state.checkVictory();
+    CHECK(v2.hasWinner());
+    CHECK(v2.winnerId == 0);
+    CHECK(v2.type == "political");
+}
+
+TEST_CASE("GameState::checkVictory: третий независимый игрок жив — 100% контроля ещё нет, победы нет")
+{
+    GameState state;
+
+    for (int id : {0, 1, 2})
+    {
+        Player p;
+        p.setId(id);
+        Settlement s(id, SettlementType::Village);
+        s.seedInitialPopulation(10);
+        p.addSettlement(s);
+        state.addPlayer(p);
+    }
+
+    state.applyVassalize(0, 1); // игрок 0 контролирует 0 и 1, но жив ещё игрок 2
+
+    CHECK(!state.checkVictory().hasWinner());
+}
+
+TEST_CASE("GameState::checkVictory: сам вассал не считается независимым контролёром "
+          "(даже если гипотетически набрал 100%)")
+{
+    GameState state;
+
+    Player master;
+    master.setId(0);
+    // У хозяина нет своих поселений — только вассал.
+    state.addPlayer(master);
+
+    Player vassal;
+    vassal.setId(1);
+    Settlement s(1, SettlementType::Village);
+    s.seedInitialPopulation(10);
+    vassal.addSettlement(s);
+    state.addPlayer(vassal);
+
+    state.applyVassalize(0, 1);
+
+    // Победа присуждается хозяину (0), а не вассалу (1), хотя формально
+    // все живые поселения физически принадлежат вассалу.
+    VictoryResult v3 = state.checkVictory();
+    CHECK(v3.hasWinner());
+    CHECK(v3.winnerId == 0);
 }
 
 // --- GameState::updatePhase ---

@@ -385,3 +385,78 @@ TEST_CASE("MapGenerator::generate: стартовая зона капитало�
         }
     }
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// Блок 3.11: параметризуемое число игроков
+// ═══════════════════════════════════════════════════════════════════════
+
+TEST_CASE("StartLayout::capitalsForPlayerCount: 5 игроков — тот же пятиугольник, что и раньше")
+{
+    auto capitals = StartLayout::capitalsForPlayerCount(5);
+    const auto &pentagon = StartLayout::pentagonCapitals();
+
+    CHECK(capitals.size() == pentagon.size());
+    for (size_t i = 0; i < capitals.size(); ++i)
+    {
+        CHECK(capitals[i].q == pentagon[i].q);
+        CHECK(capitals[i].r == pentagon[i].r);
+    }
+}
+
+TEST_CASE("StartLayout::capitalsForPlayerCount: возвращает ровно N уникальных точек для 2..4")
+{
+    for (int n = 2; n <= 4; ++n)
+    {
+        auto capitals = StartLayout::capitalsForPlayerCount(n, StartLayout::MAP_WIDTH,
+                                                             StartLayout::MAP_HEIGHT);
+        CHECK(static_cast<int>(capitals.size()) == n);
+
+        for (size_t i = 0; i < capitals.size(); ++i)
+            for (size_t j = i + 1; j < capitals.size(); ++j)
+                CHECK(!(capitals[i].q == capitals[j].q && capitals[i].r == capitals[j].r));
+    }
+}
+
+TEST_CASE("StartLayout::capitalsForPlayerCount: точки не выходят за границы карты "
+          "с учётом отступа под стартовую зону")
+{
+    for (int n = 2; n <= 5; ++n)
+    {
+        auto capitals = StartLayout::capitalsForPlayerCount(n, StartLayout::MAP_WIDTH,
+                                                             StartLayout::MAP_HEIGHT);
+        for (const auto &c : capitals)
+        {
+            CHECK(c.q >= 0);
+            CHECK(c.r >= 0);
+            CHECK(c.q < StartLayout::MAP_WIDTH);
+            CHECK(c.r < StartLayout::MAP_HEIGHT);
+        }
+    }
+}
+
+TEST_CASE("MapGenerator::generate: карта под 2/3/4 игроков связна, старты не на воде")
+{
+    for (int n = 2; n <= 4; ++n)
+    {
+        auto capitals = StartLayout::capitalsForPlayerCount(n, StartLayout::MAP_WIDTH,
+                                                             StartLayout::MAP_HEIGHT);
+
+        MapGenerationParams params;
+        params.width = StartLayout::MAP_WIDTH;
+        params.height = StartLayout::MAP_HEIGHT;
+        params.seed = 4242 + n;
+        params.guaranteedLandCenters = capitals;
+        params.guaranteedLandRadius = StartLayout::CAPITAL_LAND_RADIUS;
+
+        Map map = MapGenerator::generate(params);
+        CHECK(isFullyConnectedForTest(map));
+
+        for (const auto &c : capitals)
+        {
+            const Tile *t = map.tileAt(c.q, c.r);
+            CHECK(t != nullptr);
+            if (t)
+                CHECK(t->getType() != TileType::Water);
+        }
+    }
+}

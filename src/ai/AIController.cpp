@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <tuple>
+#include <string>
 
 namespace
 {
@@ -27,7 +28,7 @@ void AIController::takeTurn(Player &bot, GameState &state,
                             const std::vector<Unit> &unitCatalog,
                             const std::vector<PoliticalAction> &politicalActionCatalog)
 {
-    decideTradeExchange(bot, state.CurPhase());
+    decideTradeExchange(bot, state, state.CurPhase());
     decideResearch(bot, techCatalog, state.CurPhase());
     for (auto &s : bot.settlements())
     {
@@ -124,7 +125,7 @@ void AIController::decideResearch(Player &p, const std::vector<Technology> &cata
         p.setCurrentResearch(sc[0].second->getId());
 }
 
-void AIController::decideTradeExchange(Player &p, GlobalPhase phase)
+void AIController::decideTradeExchange(Player &p, GameState &state, GlobalPhase phase)
 {
     static const std::vector<std::string> targets = {"science", "industry"};
 
@@ -147,7 +148,12 @@ void AIController::decideTradeExchange(Player &p, GlobalPhase phase)
     if (tradeToSpend < 1)
         return;
 
-    p.exchangeTrade(*best, tradeToSpend);
+    if (p.exchangeTrade(*best, tradeToSpend))
+    {
+        state.pushEvent(TurnEventType::TradeExchange, p.id(), -1,
+                        "Игрок " + std::to_string(p.id()) + " обменял " +
+                            std::to_string(tradeToSpend) + " торговли на " + *best);
+    }
 }
 
 void AIController::decideRecruitment(Settlement &s, const std::vector<Unit> &catalog, GlobalPhase phase)
@@ -252,7 +258,7 @@ void AIController::decidePoliticalAction(Player &p, const std::vector<PoliticalA
 
             float s = AIStrategy::scorePoliticalAction(p, a, pl, state.CurPhase());
             if (s > 0.0f)
-                candidates.push_back({&a, pl.id(), s, cost});
+                candidates.push_back({&a, pl.id(), s});
         }
     }
 
@@ -596,72 +602,5 @@ void AIController::decideDeployment(Player &p)
         {
             p.detachArmy(s, toDeploy);
         }
-    }
-}
-
-void AIController::decideSettlerActions(Player &p, GameState &state, GlobalPhase phase)
-{
-    std::vector<std::string> settlerArmyIds;
-    for (const auto &a : p.armies())
-        if (a.isSettlerArmy())
-            settlerArmyIds.push_back(a.getId());
-
-    for (const auto &armyId : settlerArmyIds)
-    {
-        Army *mine = state.findArmy(armyId);
-        if (!mine)
-            continue;
-
-        // Уже стоим на подходящей клетке — основываем город немедленно,
-        // не тратя ход на бессмысленное перемещение.
-        if (state.canFoundSettlementAt(mine->position()))
-        {
-            state.foundSettlementFromArmy(armyId);
-            continue;
-        }
-
-        if (mine->movementPointsRemaining() <= 0)
-            continue;
-
-        std::vector<Coords> occupied;
-        for (const auto &pl : state.players())
-        {
-            for (const auto &s : pl.settlements())
-                for (const auto &t : s.tiles())
-                    occupied.push_back(t.getCoords());
-            for (const auto &ar : pl.armies())
-                occupied.push_back(ar.position());
-        }
-        auto isOccupied = [&occupied](const Coords &c)
-        {
-            for (const auto &o : occupied)
-                if (o.q == c.q && o.r == c.r)
-                    return true;
-            return false;
-        };
-
-        std::vector<Candidate> candidates;
-        for (const auto &dest : state.map().reachableTiles(mine->position(), mine->movementPointsRemaining()))
-        {
-            if (isOccupied(dest))
-                continue;
-            if (!state.canFoundSettlementAt(dest))
-                continue;
-
-            float score = AIStrategy::scoreExpand(*mine, dest, phase, state.map());
-            candidates.push_back({dest, score});
-        }
-
-        if (candidates.empty())
-            continue;
-
-        auto best = std::max_element(candidates.begin(), candidates.end(),
-                                     [](const Candidate &a, const Candidate &b)
-                                     { return a.score < b.score; });
-
-        if (best->score <= 0.0f)
-            continue;
-
-        state.moveArmy(armyId, best->destination);
     }
 }

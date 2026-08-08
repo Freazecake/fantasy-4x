@@ -578,6 +578,7 @@ TEST_CASE("AIController::takeTurn: 3 хода двух AI игроков")
 
 TEST_CASE("AIController::decideTradeExchange: реально обменивает торговлю на дефицитный ресурс")
 {
+    GameState state;
     Player p;
     p.setId(0);
     p.setRace(makeRace("humans", 1, 1, 1, 1, 1, 1));
@@ -590,14 +591,17 @@ TEST_CASE("AIController::decideTradeExchange: реально обменивае�
     p.addResources(r);
 
     float tradeBefore = p.resources().trade;
-    AIController::decideTradeExchange(p, GlobalPhase::Phase2_OpenMap);
+    AIController::decideTradeExchange(p, state, GlobalPhase::Phase2_OpenMap);
 
     CHECK(p.resources().trade < tradeBefore);
     CHECK(p.resources().science + p.resources().industry + p.resources().diplomacy > 0.0f);
+    CHECK(state.turnEvents().size() == 1u);
+    CHECK(state.turnEvents()[0].type == TurnEventType::TradeExchange);
 }
 
 TEST_CASE("AIController::decideTradeExchange: не трогает торговлю, если её меньше единицы")
 {
+    GameState state;
     Player p;
     p.setId(0);
     p.setRace(makeRace("humans", 1, 1, 1, 1, 1, 1));
@@ -606,9 +610,10 @@ TEST_CASE("AIController::decideTradeExchange: не трогает торговл
     r.trade = 0.5f;
     p.addResources(r);
 
-    AIController::decideTradeExchange(p, GlobalPhase::Phase2_OpenMap);
+    AIController::decideTradeExchange(p, state, GlobalPhase::Phase2_OpenMap);
 
     CHECK_NEAR(p.resources().trade, 0.5f, 0.001f);
+    CHECK(state.turnEvents().empty());
 }
 
 TEST_CASE("AIController::decideSettlerActions: основывает город прямо на месте, если клетка годится")

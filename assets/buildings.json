@@ -93,6 +93,63 @@
         "archer"
       ],
       "removesUntrainedPenalty": true
+    },
+    {
+      "id": "stable",
+      "name": "Конюшня",
+      "category": "military",
+      "resourceType": "",
+      "bonusMultiplier": 0.0,
+      "industryCost": 70,
+      "unlocksUnitIds": [
+        "cavalry"
+      ],
+      "removesUntrainedPenalty": true
+    },
+    {
+      "id": "war_academy",
+      "name": "Военная академия",
+      "category": "military",
+      "resourceType": "",
+      "bonusMultiplier": 0.0,
+      "industryCost": 110,
+      "unlocksUnitIds": [
+        "knight",
+        "berserker"
+      ],
+      "removesUntrainedPenalty": true
+    },
+    {
+      "id": "siege_workshop",
+      "name": "Осадный двор",
+      "category": "military",
+      "resourceType": "",
+      "bonusMultiplier": 0.0,
+      "industryCost": 150,
+      "unlocksUnitIds": [
+        "siege"
+      ],
+      "removesUntrainedPenalty": true
+    },
+    {
+      "id": "university",
+      "name": "Университет",
+      "category": "economic",
+      "resourceType": "science",
+      "bonusMultiplier": 1.5,
+      "industryCost": 150,
+      "unlocksUnitIds": [],
+      "removesUntrainedPenalty": false
+    },
+    {
+      "id": "bank",
+      "name": "Банк",
+      "category": "economic",
+      "resourceType": "trade",
+      "bonusMultiplier": 1.5,
+      "industryCost": 150,
+      "unlocksUnitIds": [],
+      "removesUntrainedPenalty": false
     }
   ]
 }

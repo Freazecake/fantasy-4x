@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <unordered_map>
 
 #include "Tile.hpp"
 
@@ -8,6 +9,8 @@ class Map
 {
 private:
     std::vector<Tile> m_map;
+    mutable std::unordered_map<long long, size_t> m_index;
+    void ensureIndex() const;
 
 public:
     Map();

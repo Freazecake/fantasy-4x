@@ -4,6 +4,9 @@
 #include "gui/TechTreePanel.hpp"
 #include "gui/TurnPanel.hpp"
 #include "gui/StartMenuWidget.hpp"
+#include "gui/TurnReportDialog.hpp"
+#include "gui/VictoryDialog.hpp"
+#include "gui/RulesDialog.hpp"
 
 #include <QMenuBar>
 #include <QStatusBar>
@@ -35,6 +38,10 @@ MainWindow::MainWindow(QWidget *parent)
     connect(saveAction, &QAction::triggered, this, &MainWindow::onSaveGame);
     auto *loadAction = gameMenu->addAction(QStringLiteral("Загрузить..."));
     connect(loadAction, &QAction::triggered, this, &MainWindow::onLoadGame);
+
+    gameMenu->addSeparator();
+    auto *rulesAction = gameMenu->addAction(QStringLiteral("Правила"));
+    connect(rulesAction, &QAction::triggered, this, &MainWindow::onShowRules);
 
     m_startMenu = new StartMenuWidget(this);
     connect(m_startMenu, &StartMenuWidget::newGameRequested, this, &MainWindow::onNewGame);
@@ -244,7 +251,7 @@ void MainWindow::selectSettlement(const Settlement &settlement)
 
 void MainWindow::onNewGame()
 {
-    m_engine.loadFromAssets(ASSETS_DIR);
+    m_engine.loadFromAssets(ASSETS_DIR, m_startMenu->selectedOptions());
     m_hasSelectedSettlement = false;
     refreshAllPanels();
     m_stack->setCurrentIndex(1);
@@ -292,6 +299,12 @@ void MainWindow::onLoadGame()
     statusBar()->showMessage(QStringLiteral("Партия загружена: %1").arg(path), 5000);
 }
 
+void MainWindow::onShowRules()
+{
+    RulesDialog dialog(this);
+    dialog.exec();
+}
+
 MainWindow::~MainWindow() {}
 
 void MainWindow::refreshAllPanels()
@@ -333,11 +346,11 @@ void MainWindow::refreshAllPanels()
             continue;
         }
         bool allied = GameState::isAllied(m_engine.state(), human.id(), p.id());
-        auto vAsVassal = vassalizations.find(p.id());
-        auto vHumanVassal = vassalizations.find(human.id());
+        auto vAsVassal = vassalizations.find(p.id());        // p — чей-то вассал?
+        auto vHumanVassal = vassalizations.find(human.id()); // человек — чей-то вассал?
         bool vassalRelation =
-            (vAsVassal != vassalizations.end() && vAsVassal->second == human.id()) ||
-            (vHumanVassal != vassalizations.end() && vHumanVassal->second == p.id());
+            (vAsVassal != vassalizations.end() && vAsVassal->second == human.id()) || // p — вассал человека
+            (vHumanVassal != vassalizations.end() && vHumanVassal->second == p.id()); // человек — вассал p
 
         if (allied)
             relations[p.id()] = PlayerRelation::Ally;
@@ -462,8 +475,7 @@ void MainWindow::onFoundSettlementRequested()
 
     auto result = m_engine.state().foundSettlementFromArmy(m_selectedArmyId);
     statusBar()->showMessage(QString::fromStdString(
-                                 result.success ? std::string("Город основан!") : result.errorMessage),
-                             5000);
+        result.success ? std::string("Город основан!") : result.errorMessage), 5000);
 
     if (result.success)
     {
@@ -564,16 +576,53 @@ void MainWindow::onEndTurn()
     }
 
     refreshAllPanels();
+
+    const auto &events = m_engine.state().turnEvents();
     statusBar()->showMessage(
-        QStringLiteral("Ход %1 завершён").arg(m_engine.state().turnNumber()), 3000);
+        QStringLiteral("Ход %1 завершён, → %2 событ%3")
+            .arg(m_engine.state().turnNumber())
+            .arg(events.size())
+            .arg(events.size() == 1 ? QStringLiteral("ие") : QStringLiteral("ий")),
+        3000);
+
+    if (!events.empty())
+    {
+        TurnReportDialog dialog(events, m_engine.state().turnNumber(), this);
+        dialog.exec();
+    }
 }
 
 void MainWindow::showVictoryDialog(const VictoryResult &v)
 {
-    QString typeStr = v.type == "political"
-                          ? QStringLiteral("Политическая победа")
-                          : QStringLiteral("Военная победа");
-    QMessageBox::information(this, QStringLiteral("Победа!"),
-                             QStringLiteral("Игрок %1 победил! (%2)").arg(v.winnerId).arg(typeStr));
-    m_stack->setCurrentIndex(0);
+    const Player *winner = nullptr;
+    for (const auto &p : m_engine.state().players())
+    {
+        if (p.id() == v.winnerId)
+        {
+            winner = &p;
+            break;
+        }
+    }
+
+    if (!winner)
+    {
+        // На всякий случай — если победителя почему-то не нашли, не падаем.
+        QMessageBox::information(this, QStringLiteral("Победа!"),
+                                 QStringLiteral("Игрок %1 победил!").arg(v.winnerId));
+        m_stack->setCurrentIndex(0);
+        return;
+    }
+
+    VictoryDialog dialog(v, *winner, m_engine.state().turnNumber(), this);
+    bool startedNewGame = false;
+    connect(&dialog, &VictoryDialog::newGameRequested, this, [this, &startedNewGame]()
+           {
+               startedNewGame = true;
+               onNewGame();
+           });
+    connect(&dialog, &VictoryDialog::exitRequested, qApp, &QApplication::quit);
+    dialog.exec();
+
+    if (!startedNewGame)
+        m_stack->setCurrentIndex(0);
 }

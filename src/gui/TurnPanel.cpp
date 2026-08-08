@@ -150,6 +150,15 @@ void TurnPanel::updateInfo(int turnNumber, const std::string& phase,
                            float science, float industry, float trade, float diplomacy) {
     m_turnLabel->setText(QStringLiteral("Ход: %1").arg(turnNumber));
     m_phaseLabel->setText(QStringLiteral("Фаза: %1").arg(QString::fromStdString(phase)));
+
+    QString phaseTip;
+    if (phase == "Начало")
+        phaseTip = QStringLiteral("У всех по одному городу, карта ещё не разведана.");
+    else if (phase == "Открытая карта")
+        phaseTip = QStringLiteral("Активная экспансия, торговля, первые конфликты.");
+    else if (phase == "Финал")
+        phaseTip = QStringLiteral("Решающая часть партии — пора добивать соперников или укреплять союзы.");
+    m_phaseLabel->setToolTip(phaseTip);
     m_scienceLabel->setText(QStringLiteral("Наука: %1").arg(static_cast<int>(science)));
     m_industryLabel->setText(QStringLiteral("Пром: %1").arg(static_cast<int>(industry)));
     m_tradeLabel->setText(QStringLiteral("Торговля: %1").arg(static_cast<int>(trade)));

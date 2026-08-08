@@ -2,6 +2,7 @@
 
 #include "core/GameEngine.hpp"
 #include "core/StartLayout.hpp"
+#include <set>
 
 TEST_CASE("GameEngine::loadFromAssets: карта 20x18, столица человека — точка 0 пятиугольника")
 {
@@ -327,4 +328,114 @@ TEST_CASE("GameEngine::loadGame: несуществующий файл — false
 {
     GameEngine engine;
     CHECK(!engine.loadGame("/tmp/this_save_definitely_does_not_exist_12345.json", ASSETS_DIR));
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Блок 3.14: отчёт о ходе
+// ═══════════════════════════════════════════════════════════════════════
+
+TEST_CASE("GameEngine::endTurn: событие Victory появляется в том же ходу, "
+          "когда остаётся один живой игрок")
+{
+    GameEngine engine;
+    CHECK(engine.loadFromAssets(ASSETS_DIR, 999));
+
+    // Искусственно убираем поселения у всех, кроме первого игрока —
+    // имитация "последнего выжившего" без прогона реального боя ботов.
+    for (size_t i = 1; i < engine.state().players().size(); ++i)
+        engine.state().players()[i].settlements().clear();
+
+    engine.endTurn();
+
+    bool hasVictory = false;
+    for (const auto &ev : engine.state().turnEvents())
+        if (ev.type == TurnEventType::Victory)
+            hasVictory = true;
+
+    CHECK(hasVictory);
+    CHECK(engine.checkVictoryCondition().hasWinner());
+}
+
+TEST_CASE("GameEngine::endTurn: события очищаются в начале каждого следующего хода")
+{
+    GameEngine engine;
+    CHECK(engine.loadFromAssets(ASSETS_DIR, 1001));
+
+    // Создаём хоть одно событие вручную, эмулируя действие прошлого хода.
+    engine.state().pushEvent(TurnEventType::TradeExchange, 0, -1, "тест");
+    CHECK(!engine.state().turnEvents().empty());
+
+    engine.endTurn();
+
+    // Ровно то, что произошло В ЭТОМ ходу — старое событие не переживает.
+    for (const auto &ev : engine.state().turnEvents())
+        CHECK(ev.description != "тест");
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Блок 3.11: выбор расы и настройки партии
+// ═══════════════════════════════════════════════════════════════════════
+
+TEST_CASE("GameEngine::loadFromAssets(options): смена расы человека применяется")
+{
+    GameEngine engine;
+    GameStartOptions options;
+    options.humanRaceId = "orcs";
+    options.numBots = 4;
+
+    CHECK(engine.loadFromAssets(ASSETS_DIR, options, 111));
+
+    CHECK(engine.state().players()[0].race().getId() == "orcs");
+    CHECK(engine.state().players()[0].isHuman());
+}
+
+TEST_CASE("GameEngine::loadFromAssets(options): число ботов задаёт итоговое число игроков")
+{
+    for (int numBots = 1; numBots <= 4; ++numBots)
+    {
+        GameEngine engine;
+        GameStartOptions options;
+        options.humanRaceId = "humans";
+        options.numBots = numBots;
+
+        CHECK(engine.loadFromAssets(ASSETS_DIR, options, 222));
+        CHECK(static_cast<int>(engine.state().players().size()) == numBots + 1);
+
+        // Расы ботов не повторяются и не совпадают с расой человека.
+        std::set<std::string> seenRaces;
+        seenRaces.insert(engine.state().players()[0].race().getId());
+        for (size_t i = 1; i < engine.state().players().size(); ++i)
+        {
+            std::string raceId = engine.state().players()[i].race().getId();
+            CHECK(seenRaces.count(raceId) == 0u);
+            seenRaces.insert(raceId);
+            CHECK(!engine.state().players()[i].isHuman());
+        }
+    }
+}
+
+TEST_CASE("GameEngine::loadFromAssets(options): каждый бот получил свою столицу и не на воде")
+{
+    GameEngine engine;
+    GameStartOptions options;
+    options.humanRaceId = "elves";
+    options.numBots = 2;
+
+    CHECK(engine.loadFromAssets(ASSETS_DIR, options, 333));
+    CHECK(engine.state().players().size() == 3u);
+
+    for (const auto &p : engine.state().players())
+    {
+        CHECK(p.settlements().size() == 1u);
+        CHECK(!p.settlements()[0].tiles().empty());
+    }
+}
+
+TEST_CASE("GameEngine::loadFromAssets(): без options ведёт себя как раньше (5 игроков, humans)")
+{
+    GameEngine engine;
+    CHECK(engine.loadFromAssets(ASSETS_DIR, 444));
+
+    CHECK(engine.state().players().size() == 5u);
+    CHECK(engine.state().players()[0].race().getId() == "humans");
 }

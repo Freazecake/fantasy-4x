@@ -1,6 +1,5 @@
 #include "core/Settlement.hpp"
 
-#include <algorithm>
 #include <sstream>
 
 Settlement::Settlement()
@@ -16,21 +15,6 @@ Settlement::Settlement(int ownerId, SettlementType type)
 void Settlement::addTile(const Tile &tile)
 {
     m_tiles.push_back(tile);
-}
-
-Coords Settlement::anchorCoords() const
-{
-    if (m_tiles.empty())
-        return Coords(-1, -1);
-
-    Coords best = m_tiles.front().getCoords();
-    for (const auto &t : m_tiles)
-    {
-        Coords c = t.getCoords();
-        if (c.q < best.q || (c.q == best.q && c.r < best.r))
-            best = c;
-    }
-    return best;
 }
 
 Coords Settlement::anchorCoords() const

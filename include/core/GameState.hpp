@@ -41,6 +41,28 @@ struct VictoryResult
     bool hasWinner() const { return winnerId >= 0; }
 };
 
+enum class TurnEventType
+{
+    Combat,
+    CityCaptured,
+    CityFounded,
+    AllianceFormed,
+    Vassalized,
+    TributeDemanded,
+    Absorbed,
+    TradeExchange,
+    Victory,
+};
+
+struct TurnEvent
+{
+    int actorId = -1;
+    int targetId = -1;
+    TurnEventType type = TurnEventType::Combat;
+    std::string description;
+    Coords location{0, 0};
+};
+
 struct MoveResult
 {
     bool success = false;
@@ -117,6 +139,15 @@ public:
     void setVassalizations(const std::unordered_map<int, int> &v) { m_vassalizations = v; }
     void setPoliticalConquestWinnerId(int id) { m_politicalConquestWinnerId = id; }
 
+    const std::vector<TurnEvent> &turnEvents() const { return m_turnEvents; }
+    void clearTurnEvents() { m_turnEvents.clear(); }
+    void pushEvent(TurnEventType type, int actorId, int targetId,
+                   const std::string &description, Coords location = Coords(0, 0))
+    {
+        m_turnEvents.push_back(TurnEvent{actorId, targetId, type, description, location});
+    }
+
 private:
     std::string settlementFoundingBlockReason(const Coords &center) const;
+    std::vector<TurnEvent> m_turnEvents;
 };

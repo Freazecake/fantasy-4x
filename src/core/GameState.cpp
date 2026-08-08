@@ -1,7 +1,7 @@
 #include "core/GameState.hpp"
 #include <set>
 #include <utility>
-#include <algorithm>
+#include <string>
 
 void GameState::addPlayer(const Player &player)
 {
@@ -18,6 +18,10 @@ void GameState::newAlliance(Player &player_1, Player &player_2, int expTurn)
 
     player_1.setAllianceBonus(true);
     player_2.setAllianceBonus(true);
+
+    pushEvent(TurnEventType::AllianceFormed, player_1.id(), player_2.id(),
+              "Игроки " + std::to_string(player_1.id()) + " и " + std::to_string(player_2.id()) +
+                  " заключили союз");
 }
 
 void GameState::setMap(const Map &map)
@@ -125,11 +129,19 @@ void GameState::applyDemandTribute(int sourceId, int targetId)
 
     Resources taken = target->takeCappedFractionFromEconomy(0.3f, TRIBUTE_STOCKPILE_CAP);
     source->addResources(taken);
+
+    pushEvent(TurnEventType::TributeDemanded, sourceId, targetId,
+              "Игрок " + std::to_string(sourceId) + " потребовал дань у игрока " +
+                  std::to_string(targetId));
 }
 
 void GameState::applyVassalize(int masterId, int vassalId)
 {
     m_vassalizations[vassalId] = masterId;
+
+    pushEvent(TurnEventType::Vassalized, masterId, vassalId,
+              "Игрок " + std::to_string(vassalId) + " стал вассалом игрока " +
+                  std::to_string(masterId));
 }
 
 void GameState::processVassalage()
@@ -227,6 +239,10 @@ bool GameState::applyPoliticalConquest(int conquerorId, int targetId)
         target->takeCappedFractionFromEconomy(0.5f, POLITICAL_CONQUEST_STOCKPILE_CAP);
     conqueror->addResources(taken);
 
+    pushEvent(TurnEventType::Absorbed, conquerorId, targetId,
+              "Игрок " + std::to_string(conquerorId) + " политически поглотил игрока " +
+                  std::to_string(targetId));
+
     int aliveCount = 0;
     for (const auto &p : m_players)
         if (!p.settlements().empty())
@@ -241,6 +257,34 @@ VictoryResult GameState::checkVictory() const
 {
     if (m_politicalConquestWinnerId >= 0)
         return {m_politicalConquestWinnerId, "political"};
+
+    int totalAliveSettlements = 0;
+    for (const auto &p : m_players)
+        totalAliveSettlements += static_cast<int>(p.settlements().size());
+
+    if (totalAliveSettlements > 0 && m_players.size() > 1)
+    {
+        for (const auto &p : m_players)
+        {
+            if (m_vassalizations.count(p.id()) > 0)
+                continue;
+
+            bool hasVassals = false;
+            int controlled = static_cast<int>(p.settlements().size());
+            for (const auto &kv : m_vassalizations)
+            {
+                if (kv.second != p.id())
+                    continue;
+                hasVassals = true;
+                for (const auto &vassal : m_players)
+                    if (vassal.id() == kv.first)
+                        controlled += static_cast<int>(vassal.settlements().size());
+            }
+
+            if (hasVassals && controlled == totalAliveSettlements)
+                return {p.id(), "political"};
+        }
+    }
 
     int aliveId = -1, aliveCount = 0;
     for (const auto &p : m_players)
@@ -308,6 +352,21 @@ static float terrainBonus(TileType type)
     }
 }
 
+static std::string formatCombatLog(const std::vector<CombatRoundLog> &log)
+{
+    std::string result;
+    for (const auto &r : log)
+    {
+        if (!result.empty())
+            result += "; ";
+        result += "Р" + std::to_string(r.roundNumber) + ": " + r.attackerUnitId + " → " +
+                  r.defenderUnitId + ", урон " + std::to_string(static_cast<int>(r.damageDealt));
+        if (r.defenderUnitDied)
+            result += " (погиб)";
+    }
+    return result;
+}
+
 CombatResult GameState::resolveMovementCombat(Army &attacker, const Coords &destination)
 {
     Player *attackerPlayer = findPlayer(m_players, attacker.getOwnerId());
@@ -359,6 +418,21 @@ CombatResult GameState::resolveMovementCombat(Army &attacker, const Coords &dest
                     a.applyCasualties(result.defenderSurvivors);
                     attackerPlayer->removeArmy(attacker.getId());
                 }
+
+                {
+                    std::string outcome = result.attackerWon ? "победа атакующего"
+                                          : result.isDraw    ? "ничья"
+                                                             : "победа защищающегося";
+                    std::string roundsLog = formatCombatLog(result.log);
+                    pushEvent(TurnEventType::Combat, attacker.getOwnerId(), p.id(),
+                              "Бой у (" + std::to_string(destination.q) + ", " +
+                                  std::to_string(destination.r) + "): игрок " +
+                                  std::to_string(attacker.getOwnerId()) + " атаковал армию игрока " +
+                                  std::to_string(p.id()) + " — " + outcome +
+                                  (roundsLog.empty() ? "" : " [" + roundsLog + "]"),
+                              destination);
+                }
+
                 return result;
             }
         }
@@ -393,6 +467,20 @@ CombatResult GameState::resolveMovementCombat(Army &attacker, const Coords &dest
                 defTerrain, s.builtBuildings(),
                 attackerRace, p.race().getModifiers().military);
 
+            {
+                std::string outcome = result.attackerWon ? "город взят"
+                                      : result.isDraw    ? "ничья, город устоял"
+                                                         : "атака отбита";
+                std::string roundsLog = formatCombatLog(result.log);
+                pushEvent(TurnEventType::Combat, attacker.getOwnerId(), p.id(),
+                          "Осада у (" + std::to_string(destination.q) + ", " +
+                              std::to_string(destination.r) + "): игрок " +
+                              std::to_string(attacker.getOwnerId()) + " атаковал город игрока " +
+                              std::to_string(p.id()) + " — " + outcome +
+                              (roundsLog.empty() ? "" : " [" + roundsLog + "]"),
+                          destination);
+            }
+
             if (result.attackerWon)
             {
                 attacker.applyCasualties(result.attackerSurvivors);
@@ -403,6 +491,11 @@ CombatResult GameState::resolveMovementCombat(Army &attacker, const Coords &dest
                 p.settlements().erase(it);
                 attackerPlayer->addSettlement(captured);
                 result.settlementCaptured = true;
+
+                pushEvent(TurnEventType::CityCaptured, attacker.getOwnerId(), p.id(),
+                          "Игрок " + std::to_string(attacker.getOwnerId()) +
+                              " захватил город игрока " + std::to_string(p.id()),
+                          destination);
             }
             else if (result.isDraw)
             {
@@ -635,6 +728,11 @@ FoundSettlementResult GameState::foundSettlementFromArmy(const std::string &army
 
     owner->addSettlement(founded);
     owner->removeArmy(armyId);
+
+    pushEvent(TurnEventType::CityFounded, owner->id(), -1,
+              "Игрок " + std::to_string(owner->id()) + " основал город у (" +
+                  std::to_string(center.q) + ", " + std::to_string(center.r) + ")",
+              center);
 
     result.success = true;
     return result;

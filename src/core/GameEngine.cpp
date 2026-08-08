@@ -6,6 +6,8 @@
 #include "external/json.hpp"
 
 #include <fstream>
+#include <string>
+#include <algorithm>
 
 static json loadFile(const std::string &path)
 {
@@ -67,7 +69,8 @@ static Player createPlayer(int id, bool isHuman, const Race &race,
     return p;
 }
 
-bool GameEngine::loadFromAssets(const std::string &assetsDir, unsigned int mapSeed)
+bool GameEngine::loadFromAssets(const std::string &assetsDir, const GameStartOptions &options,
+                                unsigned int mapSeed)
 {
     m_assetsDir = assetsDir;
 
@@ -122,29 +125,34 @@ bool GameEngine::loadFromAssets(const std::string &assetsDir, unsigned int mapSe
     }
 
     MapGenerationParams mapParams;
-    mapParams.width = StartLayout::MAP_WIDTH;
-    mapParams.height = StartLayout::MAP_HEIGHT;
-    mapParams.guaranteedLandCenters = StartLayout::pentagonCapitals();
+    mapParams.width = options.mapWidth;
+    mapParams.height = options.mapHeight;
+    int numPlayers = std::clamp(options.numBots, 1, 4) + 1;
+    auto capitals = StartLayout::capitalsForPlayerCount(numPlayers, options.mapWidth, options.mapHeight);
+    mapParams.guaranteedLandCenters = capitals;
     mapParams.guaranteedLandRadius = StartLayout::CAPITAL_LAND_RADIUS;
     mapParams.resourceCatalog = m_resourceCatalog;
     mapParams.resourceDensity = resourceDensity;
     mapParams.seed = mapSeed;
     Map gameMap = MapGenerator::generate(mapParams);
 
-    const std::vector<std::string> botRaceIds = {"dwarves", "gnomes", "elves", "orcs"};
-    const auto &capitals = StartLayout::pentagonCapitals();
+    std::vector<std::string> botRaceIds;
+    for (const auto &r : allRaces)
+        if (r.getId() != options.humanRaceId)
+            botRaceIds.push_back(r.getId());
+    int numBots = std::min(static_cast<int>(botRaceIds.size()), std::clamp(options.numBots, 1, 4));
 
-    Player human = createPlayer(0, true, raceById("humans"), allHeroes,
+    Player human = createPlayer(0, true, raceById(options.humanRaceId), allHeroes,
                                 m_techCatalog, startingUnit, capitals[0],
-                                StartLayout::MAP_WIDTH, StartLayout::MAP_HEIGHT);
+                                options.mapWidth, options.mapHeight);
     m_state.addPlayer(human);
 
-    for (size_t i = 0; i < botRaceIds.size(); ++i)
+    for (int i = 0; i < numBots; ++i)
     {
-        Player bot = createPlayer(static_cast<int>(i) + 1, false,
+        Player bot = createPlayer(i + 1, false,
                                   raceById(botRaceIds[i]), allHeroes,
                                   m_techCatalog, startingUnit, capitals[i + 1],
-                                  StartLayout::MAP_WIDTH, StartLayout::MAP_HEIGHT);
+                                  options.mapWidth, options.mapHeight);
         m_state.addPlayer(bot);
     }
 
@@ -219,6 +227,8 @@ std::string GameEngine::applyPoliticalAction(int playerId, const std::string &ac
 
 void GameEngine::endTurn()
 {
+    m_state.clearTurnEvents();
+
     for (auto &player : m_state.players())
     {
         for (auto &settlement : player.settlements())
@@ -262,6 +272,14 @@ void GameEngine::endTurn()
     m_state.updatePhase();
     m_state.nextTurn();
     m_state.recomputeVisibility();
+
+    VictoryResult v = m_state.checkVictory();
+    if (v.hasWinner())
+    {
+        m_state.pushEvent(TurnEventType::Victory, v.winnerId, -1,
+                          "Игрок " + std::to_string(v.winnerId) + " одержал победу (" +
+                              v.type + ")");
+    }
 }
 
 bool GameEngine::saveGame(const std::string &path) const
