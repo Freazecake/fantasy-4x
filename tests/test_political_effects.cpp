@@ -295,6 +295,10 @@ TEST_CASE("GameState::applyPoliticalConquest: поселения цели пер
         state.addPlayer(p);
     }
 
+    Resources r;
+    r.diplomacy = 10.0f;
+    state.players()[0].addResources(r);
+
     state.applyPoliticalConquest(0, 1);
 
     CHECK(state.players()[1].settlements().empty());
@@ -325,12 +329,16 @@ TEST_CASE("GameState::applyPoliticalConquest: ресурсы цели перех
         state.addPlayer(p);
     }
 
+    Resources r;
+    r.diplomacy = 10.0f;
+    state.players()[0].addResources(r);
+
     state.applyPoliticalConquest(0, 1);
 
-    // У цели 0 ресурсов
-    CHECK_NEAR(state.players()[1].resources().science, 0.0f, 0.1f);
-    // У завоевателя были свои 20 + забрал 20 у цели
-    CHECK_NEAR(state.players()[0].resources().science, 40.0f, 0.1f);
+    // У цели остаётся 50% ресурсов (takeCappedFractionFromEconomy(0.5, cap)).
+    CHECK_NEAR(state.players()[1].resources().science, 10.0f, 0.1f);
+    // У завоевателя были свои 20 + забрал 50% (10) у цели
+    CHECK_NEAR(state.players()[0].resources().science, 30.0f, 0.1f);
 }
 
 TEST_CASE("GameState::applyPoliticalConquest: если остался 1 игрок → политическая победа")
@@ -345,6 +353,10 @@ TEST_CASE("GameState::applyPoliticalConquest: если остался 1 игро
         p.addSettlement(s);
         state.addPlayer(p);
     }
+
+    Resources r;
+    r.diplomacy = 10.0f;
+    state.players()[0].addResources(r);
 
     state.applyPoliticalConquest(0, 1);
 

@@ -5,9 +5,7 @@
 #include <QPushButton>
 #include <QListWidget>
 
-#include "core/Army.hpp"
 #include "core/Settlement.hpp"
-#include "core/Hero.hpp"
 
 class TurnPanel : public QWidget {
     Q_OBJECT
@@ -16,20 +14,12 @@ public:
 
     void updateInfo(int turnNumber, const std::string& phase,
                     float science, float industry, float trade, float diplomacy);
-    void updateArmyList(const std::vector<Army>& armies);
     // Список своих городов с подсветкой текущего выбранного (по anchorCoords()).
     void updateSettlementList(const std::vector<Settlement>& settlements, const Coords& selectedAnchor);
-    // Показывает/скрывает кнопку "Основать город" — видна только когда
-    // выбрана армия, состоящая целиком из поселенца.
-    void setFoundSettlementAvailable(bool available);
-    // Список героев игрока: имя + раса + бонусы по сферам в процентах (блок 3.8).
-    void updateHeroList(const std::vector<Hero>& heroes, const QString& raceName);
 
 signals:
     void endTurnClicked();
-    void armySelected(const std::string& armyId);
     void settlementSelected(int q, int r);
-    void foundSettlementRequested();
 
 private:
     void setupUi();
@@ -41,8 +31,5 @@ private:
     QLabel* m_tradeLabel;
     QLabel* m_diplomacyLabel;
     QListWidget* m_settlementList;
-    QListWidget* m_heroList;
-    QListWidget* m_armyList;
-    QPushButton* m_foundSettlementBtn;
     QPushButton* m_endTurnBtn;
 };

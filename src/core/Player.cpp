@@ -224,7 +224,8 @@ void Player::recomputeVisibility(const Map &map, int visionRadius)
 
     std::vector<Coords> centers;
     for (const auto &s : m_settlements)
-        centers.push_back(s.anchorCoords());
+        for (const auto &t : s.tiles())
+            centers.push_back(t.getCoords());
     for (const auto &a : m_armies)
         centers.push_back(a.position());
 

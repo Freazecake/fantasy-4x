@@ -280,6 +280,13 @@ TEST_CASE("AIStrategy::scorePoliticalAction: PoliticalConquest выше прот
     p.addSettlement(s);
     p.advanceTurn();
 
+    Settlement sw(0, SettlementType::Village);
+    sw.seedInitialPopulation(20);
+    weak.addSettlement(sw);
+    Settlement ss(1, SettlementType::Village);
+    ss.seedInitialPopulation(20);
+    strong.addSettlement(ss);
+
     auto conquest = makeAction("pa_conquest", "politicalConquest", 30);
 
     float scoreWeak = AIStrategy::scorePoliticalAction(p, conquest, weak, GlobalPhase::NotStarted);
@@ -294,7 +301,7 @@ TEST_CASE("AIStrategy::scoreAttack: -1 для пустой армии")
     Army me("me", 0, {0, 0}, {});
     Army enemy("enemy", 1, {1, 0}, {makeUnit("u", 0, "", 5, 2, 20)});
 
-    float score = AIStrategy::scoreAttack(me, enemy, GlobalPhase::NotStarted);
+    float score = AIStrategy::scoreAttack(me, enemy, GlobalPhase::NotStarted, 0);
     CHECK(score < 0.0f);
 }
 
@@ -303,7 +310,7 @@ TEST_CASE("AIStrategy::scoreAttack: 5*factor если враг пуст")
     Army me("me", 0, {0, 0}, {makeUnit("u", 0, "", 5, 2, 20)});
     Army empty("empty", 1, {1, 0}, {});
 
-    float score = AIStrategy::scoreAttack(me, empty, GlobalPhase::NotStarted);
+    float score = AIStrategy::scoreAttack(me, empty, GlobalPhase::NotStarted, 0);
     CHECK(score > 0.0f);
 }
 
@@ -315,7 +322,7 @@ TEST_CASE("AIStrategy::scoreAttack: сильный бьёт слабого — �
     Army me("me", 0, {0, 0}, {strongU});
     Army enemy("enemy", 1, {1, 0}, {weakU});
 
-    float score = AIStrategy::scoreAttack(me, enemy, GlobalPhase::NotStarted);
+    float score = AIStrategy::scoreAttack(me, enemy, GlobalPhase::NotStarted, 0);
     CHECK(score > 0.0f);
 }
 
@@ -428,6 +435,10 @@ TEST_CASE("AIController::decidePoliticalAction: выбирает Conquest про
     Settlement &settlement = human.settlements()[0];
     settlement.assignFromIdle(Sphere::Diplomacy, 40);
     human.advanceTurn();
+
+    Resources budget;
+    budget.diplomacy = 180.0f;
+    human.addResources(budget);
 
     auto conquest = makeAction("pa_conquest", "politicalConquest", 30);
     auto alliance = makeAction("pa_alliance", "alliance", 10);

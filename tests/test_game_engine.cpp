@@ -228,7 +228,7 @@ TEST_CASE("GameEngine::saveGame/loadGame: round-trip после нескольк
     for (int i = 0; i < 3; ++i)
         engine.endTurn();
 
-    std::string path = "/tmp/test_save_roundtrip.json";
+    std::string path = "test_save_roundtrip.json";
     CHECK(engine.saveGame(path));
 
     GameEngine loaded;
@@ -276,7 +276,7 @@ TEST_CASE("GameEngine::saveGame/loadGame: round-trip сразу после ст�
     GameEngine engine;
     CHECK(engine.loadFromAssets(ASSETS_DIR, 42));
 
-    std::string path = "/tmp/test_save_turn0.json";
+    std::string path = "test_save_turn0.json";
     CHECK(engine.saveGame(path));
 
     GameEngine loaded;
@@ -302,7 +302,7 @@ TEST_CASE("GameEngine::saveGame/loadGame: сохранённая карта во
     GameEngine engine;
     CHECK(engine.loadFromAssets(ASSETS_DIR, 555));
 
-    std::string path = "/tmp/test_save_map.json";
+    std::string path = "test_save_map.json";
     CHECK(engine.saveGame(path));
 
     GameEngine loaded;

@@ -3,6 +3,7 @@
 #include "gui/SettlementPanel.hpp"
 #include "gui/TechTreePanel.hpp"
 #include "gui/TurnPanel.hpp"
+#include "gui/MilitaryPanel.hpp"
 #include "gui/StartMenuWidget.hpp"
 #include "gui/TurnReportDialog.hpp"
 #include "gui/VictoryDialog.hpp"
@@ -62,6 +63,7 @@ QWidget *MainWindow::buildGameView()
     m_settlementPanel = new SettlementPanel(this);
     m_techTreePanel = new TechTreePanel(this);
     m_turnPanel = new TurnPanel(this);
+    m_militaryPanel = new MilitaryPanel(this);
 
     auto *centralSplitter = new QSplitter(Qt::Horizontal);
     centralSplitter->addWidget(m_mapView);
@@ -80,11 +82,14 @@ QWidget *MainWindow::buildGameView()
     toggleLayout->setContentsMargins(0, 0, 0, 0);
     auto *settlementToggle = new QPushButton(QStringLiteral("Поселение"), toggleRow);
     auto *techToggle = new QPushButton(QStringLiteral("Технологии"), toggleRow);
+    auto *militaryToggle = new QPushButton(QStringLiteral("Войска/Герои"), toggleRow);
     settlementToggle->setCheckable(true);
     techToggle->setCheckable(true);
+    militaryToggle->setCheckable(true);
     settlementToggle->setChecked(true);
     toggleLayout->addWidget(settlementToggle);
     toggleLayout->addWidget(techToggle);
+    toggleLayout->addWidget(militaryToggle);
     rightLayout->addWidget(toggleRow);
 
     auto *legendRow = new QWidget(rightPanel);
@@ -121,6 +126,11 @@ QWidget *MainWindow::buildGameView()
     techScroll->setWidget(m_techTreePanel);
     panelStack->addWidget(techScroll);
 
+    auto *militaryScroll = new QScrollArea(rightPanel);
+    militaryScroll->setWidgetResizable(true);
+    militaryScroll->setWidget(m_militaryPanel);
+    panelStack->addWidget(militaryScroll);
+
     rightLayout->addWidget(panelStack, /*stretch=*/1);
     // TurnPanel — намеренно ВНЕ QStackedWidget/QScrollArea выше: сводка
     // ресурсов, список армий и кнопка "Конец хода" должны быть видны всегда,
@@ -131,12 +141,20 @@ QWidget *MainWindow::buildGameView()
             {
         panelStack->setCurrentIndex(0);
         settlementToggle->setChecked(true);
-        techToggle->setChecked(false); });
+        techToggle->setChecked(false);
+        militaryToggle->setChecked(false); });
     connect(techToggle, &QPushButton::clicked, this, [=]()
             {
         panelStack->setCurrentIndex(1);
         techToggle->setChecked(true);
-        settlementToggle->setChecked(false); });
+        settlementToggle->setChecked(false);
+        militaryToggle->setChecked(false); });
+    connect(militaryToggle, &QPushButton::clicked, this, [=]()
+            {
+        panelStack->setCurrentIndex(2);
+        militaryToggle->setChecked(true);
+        settlementToggle->setChecked(false);
+        techToggle->setChecked(false); });
 
     centralSplitter->addWidget(rightPanel);
     centralSplitter->setStretchFactor(0, 1);
@@ -147,9 +165,9 @@ QWidget *MainWindow::buildGameView()
     centralSplitter->setSizes({700, 300});
 
     connect(m_turnPanel, &TurnPanel::endTurnClicked, this, &MainWindow::onEndTurn);
-    connect(m_turnPanel, &TurnPanel::armySelected, this, &MainWindow::onArmySelected);
     connect(m_turnPanel, &TurnPanel::settlementSelected, this, &MainWindow::onSettlementListSelected);
-    connect(m_turnPanel, &TurnPanel::foundSettlementRequested, this, &MainWindow::onFoundSettlementRequested);
+    connect(m_militaryPanel, &MilitaryPanel::armySelected, this, &MainWindow::onArmySelected);
+    connect(m_militaryPanel, &MilitaryPanel::foundSettlementRequested, this, &MainWindow::onFoundSettlementRequested);
     connect(m_mapView, &MapView::tileClicked, this, &MainWindow::onTileClicked);
     connect(m_mapView, &MapView::tileHovered, this, &MainWindow::onTileHovered);
     connect(m_mapView, &MapView::armySelected, this, &MainWindow::onArmySelected);
@@ -363,14 +381,22 @@ void MainWindow::refreshAllPanels()
     m_mapView->clearReachableTiles();
     m_mapView->renderMap(m_engine.state().map(), settlementTiles, allPlayersArmies, human.id(), relations,
                          &human.exploredTiles(), &human.visibleTiles());
-    m_turnPanel->updateArmyList(human.armies());
-    m_turnPanel->updateHeroList(human.heroes(), QString::fromStdString(human.race().getName()));
+    m_militaryPanel->updateArmyList(human.armies());
+    m_militaryPanel->updateHeroList(human.heroes(), QString::fromStdString(human.race().getName()));
 
     Settlement *selected = selectedHumanSettlement(human);
     if (selected)
     {
         m_settlementPanel->showSettlement(
             *selected, m_engine.buildingCatalog(), m_engine.unitCatalog());
+    }
+    else
+    {
+        // Выбранное поселение исчезло (захвачено врагом) или своих городов
+        // больше нет — иначе SettlementPanel держит протухший указатель на
+        // элемент vector<Settlement> после реаллокации/стирания, и следующий
+        // клик по кнопкам панели приводит к падению.
+        m_settlementPanel->clearSettlement();
     }
     m_turnPanel->updateSettlementList(human.settlements(), m_selectedSettlementAnchor);
 
@@ -451,7 +477,7 @@ void MainWindow::onArmySelected(const std::string &armyId)
 
     m_selectedArmyId = armyId;
     m_mapView->setSelectedArmy(armyId);
-    m_turnPanel->setFoundSettlementAvailable(army->isSettlerArmy());
+    m_militaryPanel->setFoundSettlementAvailable(army->isSettlerArmy());
 
     auto reachable = m_engine.state().map().reachableTiles(
         army->position(), army->movementPointsRemaining());
@@ -482,7 +508,7 @@ void MainWindow::onFoundSettlementRequested()
         m_selectedArmyId.clear();
         m_hasSelectedSettlement = false; // выбираем новый город в refreshAllPanels
         m_mapView->clearSelection();
-        m_turnPanel->setFoundSettlementAvailable(false);
+        m_militaryPanel->setFoundSettlementAvailable(false);
     }
 
     refreshAllPanels();
@@ -512,7 +538,15 @@ void MainWindow::onArmyMoveRequested(const std::string &armyId, int q, int r)
     refreshAllPanels();
     m_mapView->clearSelection();
     m_selectedArmyId.clear();
-    m_turnPanel->setFoundSettlementAvailable(false);
+    m_militaryPanel->setFoundSettlementAvailable(false);
+
+    // Захват города армией может сразу решить партию (взят последний вражеский
+    // город) — раньше это обнаруживалось только на onEndTurn, и до конца хода
+    // игра "молчала" даже после решающего удара. Проверяем сразу же, как
+    // проверка уже делается после политических действий (см. выше).
+    auto v = m_engine.checkVictoryCondition();
+    if (v.hasWinner())
+        showVictoryDialog(v);
 }
 
 void MainWindow::onSettlementListSelected(int q, int r)
@@ -534,11 +568,11 @@ void MainWindow::onSelectionCleared()
 {
     m_mapView->clearSelection();
     m_selectedArmyId.clear();
-    m_turnPanel->setFoundSettlementAvailable(false);
+    m_militaryPanel->setFoundSettlementAvailable(false);
     statusBar()->clearMessage();
 }
 
-void MainWindow::onMarchRequested()
+void MainWindow::onMarchRequested(const std::vector<std::string> &unitIds)
 {
     Settlement *settlement = m_settlementPanel->currentSettlement();
     if (!settlement)
@@ -546,19 +580,17 @@ void MainWindow::onMarchRequested()
 
     Player &human = m_engine.state().players()[0];
 
-    std::vector<std::string> allUnitIds;
-    for (const auto &u : settlement->garrison())
-        allUnitIds.push_back(u.getId());
-
-    if (allUnitIds.empty())
+    if (unitIds.empty())
     {
         statusBar()->showMessage(QStringLiteral("Нет войск в гарнизоне"), 5000);
         return;
     }
 
-    human.detachArmy(*settlement, allUnitIds);
+    human.detachArmy(*settlement, unitIds);
     refreshAllPanels();
-    statusBar()->showMessage(QStringLiteral("Армия выступила в поход"), 5000);
+    statusBar()->showMessage(
+        QStringLiteral("Армия выступила в поход (%1 юн.)").arg(static_cast<int>(unitIds.size())),
+        5000);
 }
 
 void MainWindow::onEndTurn()

@@ -39,7 +39,7 @@ signals:
     void actionFailed(const QString& message);
     void tradeExchangeRequested(const std::string& targetResource, int amount);
     void politicalActionRequested(const std::string& actionId, int targetId);
-    void marchRequested();
+    void marchRequested(const std::vector<std::string>& unitIds);
 
 private slots:
     void onApplyAllocation();
