@@ -21,6 +21,8 @@ QString eventTypeLabel(TurnEventType type)
         return QStringLiteral("🏗 Основание города");
     case TurnEventType::AllianceFormed:
         return QStringLiteral("🤝 Союз");
+    case TurnEventType::AllianceBroken:
+        return QStringLiteral("💔 Разрыв союза");
     case TurnEventType::Vassalized:
         return QStringLiteral("👑 Вассалитет");
     case TurnEventType::TributeDemanded:

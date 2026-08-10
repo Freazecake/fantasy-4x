@@ -248,3 +248,12 @@ void Player::recomputeVisibility(const Map &map, int visionRadius)
     for (const auto &v : m_visibleTiles)
         m_exploredTiles.insert(v);
 }
+
+void Player::shareVisibility(const std::set<std::pair<int, int>> &tiles)
+{
+    for (const auto &t : tiles)
+    {
+        m_visibleTiles.insert(t);
+        m_exploredTiles.insert(t);
+    }
+}

@@ -47,6 +47,7 @@ enum class TurnEventType
     CityCaptured,
     CityFounded,
     AllianceFormed,
+    AllianceBroken,
     Vassalized,
     TributeDemanded,
     Absorbed,

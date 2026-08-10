@@ -120,6 +120,7 @@ public:
     const std::set<std::pair<int, int>> &exploredTiles() const { return m_exploredTiles; }
     const std::set<std::pair<int, int>> &visibleTiles() const { return m_visibleTiles; }
     void recomputeVisibility(const Map &map, int visionRadius = FOG_OF_WAR_VISION_RADIUS);
+    void shareVisibility(const std::set<std::pair<int, int>> &tiles);
 
     bool operator==(const Player &other) const
     {

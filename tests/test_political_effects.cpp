@@ -165,6 +165,12 @@ TEST_CASE("GameState::checkAlliances: удаляет истёкший альян
     CHECK(state.alliances().empty());
     CHECK(!state.players()[0].allianceBonus());
     CHECK(!state.players()[1].allianceBonus());
+
+    // Разрыв истёкшего союза попадает в события хода.
+    CHECK(!state.turnEvents().empty());
+    CHECK(state.turnEvents().back().type == TurnEventType::AllianceBroken);
+    CHECK(state.turnEvents().back().actorId == 0);
+    CHECK(state.turnEvents().back().targetId == 1);
 }
 
 TEST_CASE("GameState::checkAlliances: удаляет только истёкшие, активные остаются")
@@ -188,6 +194,95 @@ TEST_CASE("GameState::checkAlliances: удаляет только истёкши
     CHECK(state.players()[0].allianceBonus());   // p1 still in alliance with p3
     CHECK(!state.players()[1].allianceBonus()); // expired
     CHECK(state.players()[2].allianceBonus());   // still in active
+}
+
+// --- Shared vision through alliance ---
+
+TEST_CASE("GameState::recomputeVisibility: без союза чужая территория не видна")
+{
+    GameState state;
+    state.setMap(Map::generateMap(30, 30));
+
+    Player p1;
+    p1.setId(0);
+    Settlement s1(0, SettlementType::Village);
+    s1.addTile(Tile(5, 5));
+    p1.addSettlement(s1);
+    state.addPlayer(p1);
+
+    Player p2;
+    p2.setId(1);
+    Settlement s2(1, SettlementType::Village);
+    s2.addTile(Tile(25, 25));
+    p2.addSettlement(s2);
+    state.addPlayer(p2);
+
+    state.recomputeVisibility(2);
+
+    CHECK(state.players()[0].isVisible(Coords(5, 5)));
+    CHECK(!state.players()[0].isVisible(Coords(25, 25)));
+    CHECK(!state.players()[0].isExplored(Coords(25, 25)));
+}
+
+TEST_CASE("GameState::recomputeVisibility: союз расширяет туман войны на территорию союзника")
+{
+    GameState state;
+    state.setMap(Map::generateMap(30, 30));
+
+    Player p1;
+    p1.setId(0);
+    Settlement s1(0, SettlementType::Village);
+    s1.addTile(Tile(5, 5));
+    p1.addSettlement(s1);
+    state.addPlayer(p1);
+
+    Player p2;
+    p2.setId(1);
+    Settlement s2(1, SettlementType::Village);
+    s2.addTile(Tile(25, 25));
+    p2.addSettlement(s2);
+    state.addPlayer(p2);
+
+    state.newAlliance(state.players()[0], state.players()[1], 5);
+    state.recomputeVisibility(2);
+
+    // Оба видят поселения друг друга через общий обзор.
+    CHECK(state.players()[0].isVisible(Coords(25, 25)));
+    CHECK(state.players()[0].isExplored(Coords(25, 25)));
+    CHECK(state.players()[1].isVisible(Coords(5, 5)));
+    CHECK(state.players()[1].isExplored(Coords(5, 5)));
+}
+
+TEST_CASE("GameState::recomputeVisibility: после разрыва союза чужое перестаёт быть видимым, но остаётся разведанным")
+{
+    GameState state;
+    state.setMap(Map::generateMap(30, 30));
+
+    Player p1;
+    p1.setId(0);
+    Settlement s1(0, SettlementType::Village);
+    s1.addTile(Tile(5, 5));
+    p1.addSettlement(s1);
+    state.addPlayer(p1);
+
+    Player p2;
+    p2.setId(1);
+    Settlement s2(1, SettlementType::Village);
+    s2.addTile(Tile(25, 25));
+    p2.addSettlement(s2);
+    state.addPlayer(p2);
+
+    state.newAlliance(state.players()[0], state.players()[1], 5);
+    state.recomputeVisibility(2);
+    CHECK(state.players()[0].isVisible(Coords(25, 25)));
+
+    // Союз истёк — общий обзор пропадает, но территория разведана навсегда.
+    state.setTurnNumber(5);
+    state.checkAlliances();
+    state.recomputeVisibility(2);
+
+    CHECK(!state.players()[0].isVisible(Coords(25, 25)));
+    CHECK(state.players()[0].isExplored(Coords(25, 25)));
 }
 
 // --- DemandTribute ---

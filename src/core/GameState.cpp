@@ -38,6 +38,18 @@ void GameState::recomputeVisibility(int visionRadius)
 {
     for (auto &p : m_players)
         p.recomputeVisibility(m_map, visionRadius);
+
+    for (auto &p : m_players)
+    {
+        for (const auto &ally : m_players)
+        {
+            if (ally.id() == p.id())
+                continue;
+            if (!isAllied(*this, p.id(), ally.id()))
+                continue;
+            p.shareVisibility(ally.visibleTiles());
+        }
+    }
 }
 
 bool GameState::updatePhase()
@@ -97,8 +109,17 @@ void GameState::checkAlliances()
 {
     std::vector<ActiveAlliance> active;
     for (const auto &a : m_alliances)
+    {
         if (a.expiryTurn > m_turnNumber)
+        {
             active.push_back(a);
+            continue;
+        }
+
+        pushEvent(TurnEventType::AllianceBroken, a.playerA, a.playerB,
+                  "Союз между игроками " + std::to_string(a.playerA) + " и " +
+                      std::to_string(a.playerB) + " расторгнут");
+    }
     m_alliances = std::move(active);
 
     for (auto &p : m_players)

@@ -204,6 +204,7 @@ std::string GameEngine::applyPoliticalAction(int playerId, const std::string &ac
             if (!target)
                 return "Цель не найдена";
             m_state.newAlliance(*player, *target, m_state.turnNumber() + 5);
+            m_state.recomputeVisibility();
             return "Союз заключён";
 
         case PoliticalActionType::DemandTribute:
