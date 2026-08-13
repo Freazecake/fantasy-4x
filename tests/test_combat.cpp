@@ -274,6 +274,19 @@ TEST_CASE("GameState::moveArmy: атака вражеской армии — б�
     CHECK(state.findArmy("defender") == nullptr);
     // Attacker should still exist (moved to destination)
     CHECK(state.findArmy("attacker") != nullptr);
+
+    // Блок 3.14: бой должен оставить событие в отчёте о ходе.
+    CHECK(state.turnEvents().size() == 1u);
+    CHECK(state.turnEvents()[0].type == TurnEventType::Combat);
+    CHECK(state.turnEvents()[0].actorId == 0);
+    CHECK(state.turnEvents()[0].targetId == 1);
+
+    // Блок 3.9: строка лога включает раунд, юнитов и урон.
+    const std::string &desc = state.turnEvents()[0].description;
+    CHECK(desc.find("Р1:") != std::string::npos);
+    CHECK(desc.find("урон") != std::string::npos);
+    CHECK(desc.find("strong") != std::string::npos);
+    CHECK(desc.find("weak") != std::string::npos);
 }
 
 TEST_CASE("GameState::moveArmy: атака вражеского поселения — захват")
@@ -298,6 +311,18 @@ TEST_CASE("GameState::moveArmy: атака вражеского поселени
     CHECK(result.success);
     CHECK(result.combatOccurred);
     CHECK(result.settlementCaptured);
+
+    // Блок 3.14: захват города даёт ДВА события — сам бой и отдельно захват.
+    bool hasCombat = false, hasCaptured = false;
+    for (const auto &ev : state.turnEvents())
+    {
+        if (ev.type == TurnEventType::Combat)
+            hasCombat = true;
+        if (ev.type == TurnEventType::CityCaptured && ev.actorId == 0 && ev.targetId == 1)
+            hasCaptured = true;
+    }
+    CHECK(hasCombat);
+    CHECK(hasCaptured);
 }
 
 TEST_CASE("GameState::moveArmy: несуществующая армия")

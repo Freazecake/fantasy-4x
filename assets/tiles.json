@@ -1,0 +1,29 @@
+{
+    "resourceDensity": 0.15,
+    "resources": [
+        {
+            "type": "food",
+            "sphere": "growth",
+            "bonus": 6,
+            "allowedTerrains": ["grass", "forest"]
+        },
+        {
+            "type": "production",
+            "sphere": "industry",
+            "bonus": 8,
+            "allowedTerrains": ["mountain", "forest"]
+        },
+        {
+            "type": "gold",
+            "sphere": "trade",
+            "bonus": 6,
+            "allowedTerrains": ["desert", "grass"]
+        },
+        {
+            "type": "science",
+            "sphere": "science",
+            "bonus": 6,
+            "allowedTerrains": ["mountain", "grass"]
+        }
+    ]
+}

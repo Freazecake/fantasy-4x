@@ -144,6 +144,100 @@
         "diplomacy"
       ],
       "globalBonusMultiplier": 1.1
+    },
+    {
+      "id": "tech_military_1",
+      "name": "Основы кавалерии",
+      "category": "military",
+      "scienceCost": 70,
+      "prerequisiteIds": [],
+      "unlocksBuildingIds": [
+        "stable"
+      ],
+      "bonusCategories": [
+        "military"
+      ],
+      "globalBonusMultiplier": 1.0
+    },
+    {
+      "id": "tech_military_2",
+      "name": "Рыцарский орден",
+      "category": "military",
+      "scienceCost": 130,
+      "prerequisiteIds": [
+        "tech_military_1"
+      ],
+      "unlocksBuildingIds": [
+        "war_academy"
+      ],
+      "bonusCategories": [
+        "military"
+      ],
+      "globalBonusMultiplier": 1.1
+    },
+    {
+      "id": "tech_military_3",
+      "name": "Осадное дело",
+      "category": "military",
+      "scienceCost": 190,
+      "prerequisiteIds": [
+        "tech_military_2"
+      ],
+      "unlocksBuildingIds": [
+        "siege_workshop"
+      ],
+      "bonusCategories": [
+        "military"
+      ],
+      "globalBonusMultiplier": 1.2
+    },
+    {
+      "id": "tech_science_3",
+      "name": "Университетская хартия",
+      "category": "science",
+      "scienceCost": 160,
+      "prerequisiteIds": [
+        "tech_science_2"
+      ],
+      "unlocksBuildingIds": [
+        "university"
+      ],
+      "bonusCategories": [
+        "science"
+      ],
+      "globalBonusMultiplier": 1.2
+    },
+    {
+      "id": "tech_trade_3",
+      "name": "Банковское дело",
+      "category": "trade",
+      "scienceCost": 160,
+      "prerequisiteIds": [
+        "tech_trade_2"
+      ],
+      "unlocksBuildingIds": [
+        "bank"
+      ],
+      "bonusCategories": [
+        "trade"
+      ],
+      "globalBonusMultiplier": 1.2
+    },
+    {
+      "id": "tech_synergy_3",
+      "name": "Военная промышленность",
+      "category": "military",
+      "scienceCost": 100,
+      "prerequisiteIds": [
+        "tech_military_1",
+        "tech_industry_1"
+      ],
+      "unlocksBuildingIds": [],
+      "bonusCategories": [
+        "military",
+        "industry"
+      ],
+      "globalBonusMultiplier": 1.1
     }
   ]
 }

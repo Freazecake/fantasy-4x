@@ -1,6 +1,8 @@
 #include "test_framework.hpp"
 
 #include "core/Player.hpp"
+#include "core/Map.hpp"
+#include "core/GameState.hpp"
 
 namespace
 {
@@ -344,4 +346,136 @@ TEST_CASE("Player::advanceTurn + spendIndustryOnQueues одной парой (к
 
     CHECK(live.hasBuilt("workshop"));
     CHECK_NEAR(p.resources().industry, 20.0f, 0.01f); // 50 - 30, ни потери, ни задвоения
+}
+// ═══════════════════════════════════════════════════════════════════════
+// Блок 3.6: туман войны — Player::recomputeVisibility
+// ═══════════════════════════════════════════════════════════════════════
+
+TEST_CASE("Player::recomputeVisibility: видимость растёт вокруг поселения в пределах радиуса")
+{
+    Map map = Map::generateMap(20, 20);
+    Player p;
+    p.setId(0);
+    Settlement s(0, SettlementType::Village);
+    s.addTile(Tile(10, 10));
+    p.addSettlement(s);
+
+    p.recomputeVisibility(map, 2);
+
+    CHECK(p.isVisible(Coords(10, 10)));  // сама клетка поселения
+    CHECK(p.isVisible(Coords(10, 12)));  // в пределах радиуса 2
+    CHECK(!p.isVisible(Coords(10, 20))); // далеко за радиусом
+    CHECK(p.isExplored(Coords(10, 10))); // explored пополняется из visible
+}
+
+TEST_CASE("Player::recomputeVisibility: видимость растёт вокруг армии")
+{
+    Map map = Map::generateMap(20, 20);
+    Player p;
+    p.setId(0);
+    p.addArmy(Army("a1", 0, Coords(5, 5), {}));
+
+    p.recomputeVisibility(map, 2);
+
+    CHECK(p.isVisible(Coords(5, 5)));
+    CHECK(p.isVisible(Coords(6, 5)));
+    CHECK(!p.isVisible(Coords(15, 15)));
+}
+
+TEST_CASE("Player::recomputeVisibility: explored не убывает, а visible пересчитывается заново")
+{
+    Map map = Map::generateMap(20, 20);
+    Player p;
+    p.setId(0);
+    p.addArmy(Army("a1", 0, Coords(2, 2), {}));
+
+    p.recomputeVisibility(map, 1);
+    CHECK(p.isVisible(Coords(2, 2)));
+    CHECK(p.isExplored(Coords(2, 2)));
+
+    // Армия ушла далеко — старая клетка больше не visible, но остаётся explored.
+    p.armies()[0].moveTo(Coords(15, 15), 0);
+    p.recomputeVisibility(map, 1);
+
+    CHECK(!p.isVisible(Coords(2, 2)));  // больше не видно прямо сейчас
+    CHECK(p.isExplored(Coords(2, 2)));  // но разведано навсегда
+    CHECK(p.isVisible(Coords(15, 15))); // а новая позиция видна
+}
+
+TEST_CASE("Player::recomputeVisibility: без поселений и армий ничего не видно")
+{
+    Map map = Map::generateMap(10, 10);
+    Player p;
+    p.setId(0);
+
+    p.recomputeVisibility(map, 3);
+
+    CHECK(p.visibleTiles().empty());
+    CHECK(p.exploredTiles().empty());
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Блок 3.6: GameState::moveArmy — ограничение по разведанности для человека
+// ═══════════════════════════════════════════════════════════════════════
+
+TEST_CASE("GameState::moveArmy: человек не может пойти в неразведанное")
+{
+    GameState state;
+    state.setMap(Map::generateMap(20, 20));
+
+    Player p;
+    p.setId(0);
+    p.setIsHuman(true);
+    p.addArmy(Army("a1", 0, Coords(5, 5), {}));
+    state.addPlayer(p);
+    state.recomputeVisibility(2); // видно только вокруг (5,5)
+
+    auto result = state.moveArmy("a1", Coords(19, 19)); // далеко за пределами видимости
+
+    CHECK(!result.success);
+    CHECK(!result.errorMessage.empty());
+}
+
+TEST_CASE("GameState::moveArmy: человек может пойти в разведанную клетку")
+{
+    GameState state;
+    state.setMap(Map::generateMap(20, 20));
+
+    Player p;
+    p.setId(0);
+    p.setIsHuman(true);
+    Unit scout = Unit::loadFromJson({
+        {"id", "scout"}, {"name", "scout"},
+        {"stats", {{"health", 10}, {"attack", 1}, {"defense", 1}, {"movementPoints", 3}}},
+        {"tier", 0}, {"requiredBuildingId", ""}, {"recruitCost", 10}, {"populationCost", 10}
+    });
+    p.addArmy(Army("a1", 0, Coords(5, 5), {scout}));
+    state.addPlayer(p);
+    state.recomputeVisibility(3);
+
+    auto result = state.moveArmy("a1", Coords(6, 5)); // рядом, в пределах радиуса 3
+
+    CHECK(result.success);
+}
+
+TEST_CASE("GameState::moveArmy: ИИ (не-человек) игнорирует туман войны — может идти куда угодно")
+{
+    GameState state;
+    state.setMap(Map::generateMap(20, 20));
+
+    Player p;
+    p.setId(0);
+    p.setIsHuman(false);
+    Unit scout = Unit::loadFromJson({
+        {"id", "scout"}, {"name", "scout"},
+        {"stats", {{"health", 10}, {"attack", 1}, {"defense", 1}, {"movementPoints", 3}}},
+        {"tier", 0}, {"requiredBuildingId", ""}, {"recruitCost", 10}, {"populationCost", 10}
+    });
+    p.addArmy(Army("a1", 0, Coords(5, 5), {scout}));
+    state.addPlayer(p);
+    // recomputeVisibility специально НЕ вызываем — у бота нет разведанных клеток вовсе.
+
+    auto result = state.moveArmy("a1", Coords(6, 5));
+
+    CHECK(result.success); // ограничение на ИИ не распространяется
 }

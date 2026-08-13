@@ -272,3 +272,191 @@ TEST_CASE("MapGenerator::generate: раскладка 5 столиц связн�
         CHECK(isFullyConnectedForTest(map));
     }
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// Блок 3.4: ресурсные клетки
+// ═══════════════════════════════════════════════════════════════════════
+
+namespace
+{
+    std::vector<ResourceDef> testResourceCatalog()
+    {
+        ResourceDef food;
+        food.type = ResourceType::Food;
+        food.sphere = "growth";
+        food.bonus = 6;
+        food.allowedTerrains = {TileType::Grass, TileType::Forest};
+
+        ResourceDef production;
+        production.type = ResourceType::Production;
+        production.sphere = "industry";
+        production.bonus = 8;
+        production.allowedTerrains = {TileType::Mountain, TileType::Forest};
+
+        return {food, production};
+    }
+}
+
+TEST_CASE("MapGenerator::generate: без каталога ресурсов клетки остаются без ресурса")
+{
+    MapGenerationParams params;
+    params.width = 20;
+    params.height = 18;
+    params.seed = 777;
+    params.resourceDensity = 0.5f; // высокая плотность, но каталог пуст
+
+    Map map = MapGenerator::generate(params);
+
+    for (const auto &tile : map.getMap())
+        CHECK(tile.getResource() == ResourceType::None);
+}
+
+TEST_CASE("MapGenerator::generate: с каталогом и высокой плотностью появляются ресурсы")
+{
+    MapGenerationParams params;
+    params.width = 20;
+    params.height = 18;
+    params.seed = 777;
+    params.resourceCatalog = testResourceCatalog();
+    params.resourceDensity = 0.9f; // почти на каждой подходящей клетке
+
+    Map map = MapGenerator::generate(params);
+
+    int withResource = 0;
+    for (const auto &tile : map.getMap())
+        if (tile.getResource() != ResourceType::None)
+            ++withResource;
+
+    CHECK(withResource > 0);
+}
+
+TEST_CASE("MapGenerator::generate: ресурс появляется только на разрешённых типах местности")
+{
+    MapGenerationParams params;
+    params.width = 20;
+    params.height = 18;
+    params.seed = 42;
+    params.resourceCatalog = testResourceCatalog(); // food: grass/forest, production: mountain/forest
+    params.resourceDensity = 0.9f;
+
+    Map map = MapGenerator::generate(params);
+
+    for (const auto &tile : map.getMap())
+    {
+        if (tile.getResource() == ResourceType::None)
+            continue;
+
+        if (tile.getResource() == ResourceType::Food)
+        {
+            CHECK(tile.getType() == TileType::Grass || tile.getType() == TileType::Forest);
+        }
+        else if (tile.getResource() == ResourceType::Production)
+        {
+            CHECK(tile.getType() == TileType::Mountain || tile.getType() == TileType::Forest);
+        }
+        CHECK(tile.getType() != TileType::Water); // на воде ресурсов не бывает
+    }
+}
+
+TEST_CASE("MapGenerator::generate: стартовая зона капиталов не получает ресурсов")
+{
+    MapGenerationParams params;
+    params.width = 20;
+    params.height = 18;
+    params.seed = 123;
+    params.guaranteedLandCenters = {Coords(10, 9)};
+    params.guaranteedLandRadius = 3;
+    params.resourceCatalog = testResourceCatalog();
+    params.resourceDensity = 1.0f; // максимум — если бы старт не защищался, он бы точно получил ресурс
+
+    Map map = MapGenerator::generate(params);
+
+    for (int dq = -3; dq <= 3; ++dq)
+    {
+        for (int dr = -3; dr <= 3; ++dr)
+        {
+            Coords c(10 + dq, 9 + dr);
+            if (c.distanceTo(Coords(10, 9)) > 3)
+                continue;
+            const Tile *t = map.tileAt(c.q, c.r);
+            if (!t)
+                continue;
+            CHECK(t->getResource() == ResourceType::None);
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Блок 3.11: параметризуемое число игроков
+// ═══════════════════════════════════════════════════════════════════════
+
+TEST_CASE("StartLayout::capitalsForPlayerCount: 5 игроков — тот же пятиугольник, что и раньше")
+{
+    auto capitals = StartLayout::capitalsForPlayerCount(5);
+    const auto &pentagon = StartLayout::pentagonCapitals();
+
+    CHECK(capitals.size() == pentagon.size());
+    for (size_t i = 0; i < capitals.size(); ++i)
+    {
+        CHECK(capitals[i].q == pentagon[i].q);
+        CHECK(capitals[i].r == pentagon[i].r);
+    }
+}
+
+TEST_CASE("StartLayout::capitalsForPlayerCount: возвращает ровно N уникальных точек для 2..4")
+{
+    for (int n = 2; n <= 4; ++n)
+    {
+        auto capitals = StartLayout::capitalsForPlayerCount(n, StartLayout::MAP_WIDTH,
+                                                             StartLayout::MAP_HEIGHT);
+        CHECK(static_cast<int>(capitals.size()) == n);
+
+        for (size_t i = 0; i < capitals.size(); ++i)
+            for (size_t j = i + 1; j < capitals.size(); ++j)
+                CHECK(!(capitals[i].q == capitals[j].q && capitals[i].r == capitals[j].r));
+    }
+}
+
+TEST_CASE("StartLayout::capitalsForPlayerCount: точки не выходят за границы карты "
+          "с учётом отступа под стартовую зону")
+{
+    for (int n = 2; n <= 5; ++n)
+    {
+        auto capitals = StartLayout::capitalsForPlayerCount(n, StartLayout::MAP_WIDTH,
+                                                             StartLayout::MAP_HEIGHT);
+        for (const auto &c : capitals)
+        {
+            CHECK(c.q >= 0);
+            CHECK(c.r >= 0);
+            CHECK(c.q < StartLayout::MAP_WIDTH);
+            CHECK(c.r < StartLayout::MAP_HEIGHT);
+        }
+    }
+}
+
+TEST_CASE("MapGenerator::generate: карта под 2/3/4 игроков связна, старты не на воде")
+{
+    for (int n = 2; n <= 4; ++n)
+    {
+        auto capitals = StartLayout::capitalsForPlayerCount(n, StartLayout::MAP_WIDTH,
+                                                             StartLayout::MAP_HEIGHT);
+
+        MapGenerationParams params;
+        params.width = StartLayout::MAP_WIDTH;
+        params.height = StartLayout::MAP_HEIGHT;
+        params.seed = 4242 + n;
+        params.guaranteedLandCenters = capitals;
+        params.guaranteedLandRadius = StartLayout::CAPITAL_LAND_RADIUS;
+
+        Map map = MapGenerator::generate(params);
+        CHECK(isFullyConnectedForTest(map));
+
+        for (const auto &c : capitals)
+        {
+            const Tile *t = map.tileAt(c.q, c.r);
+            CHECK(t != nullptr);
+            if (t)
+                CHECK(t->getType() != TileType::Water);
+        }
+    }
+}

@@ -5,7 +5,7 @@
 #include <QPushButton>
 #include <QListWidget>
 
-#include "core/Army.hpp"
+#include "core/Settlement.hpp"
 
 class TurnPanel : public QWidget {
     Q_OBJECT
@@ -14,11 +14,12 @@ public:
 
     void updateInfo(int turnNumber, const std::string& phase,
                     float science, float industry, float trade, float diplomacy);
-    void updateArmyList(const std::vector<Army>& armies);
+    // Список своих городов с подсветкой текущего выбранного (по anchorCoords()).
+    void updateSettlementList(const std::vector<Settlement>& settlements, const Coords& selectedAnchor);
 
 signals:
     void endTurnClicked();
-    void armySelected(const std::string& armyId);
+    void settlementSelected(int q, int r);
 
 private:
     void setupUi();
@@ -29,6 +30,6 @@ private:
     QLabel* m_industryLabel;
     QLabel* m_tradeLabel;
     QLabel* m_diplomacyLabel;
-    QListWidget* m_armyList;
+    QListWidget* m_settlementList;
     QPushButton* m_endTurnBtn;
 };

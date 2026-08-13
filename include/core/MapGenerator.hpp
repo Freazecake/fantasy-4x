@@ -1,9 +1,12 @@
 #pragma once
 
 #include <vector>
+#include <random>
+#include <unordered_set>
 
 #include "core/Map.hpp"
 #include "core/Tile.hpp"
+#include "core/ResourceCatalog.hpp"
 
 struct MapGenerationParams
 {
@@ -20,6 +23,9 @@ struct MapGenerationParams
     std::vector<Coords> guaranteedLandCenters;
     int guaranteedLandRadius = 2;
 
+    std::vector<ResourceDef> resourceCatalog;
+    float resourceDensity = 0.0f;
+
     int maxAttempts = 20;
 };
 
@@ -32,4 +38,7 @@ private:
     static Map tryGenerateOnce(const MapGenerationParams &params, unsigned int attemptSeed);
     static bool isFullyConnected(const Map &map);
     static std::vector<Coords> ringAround(Coords center, int radius, int width, int height);
+    static void placeResources(Map &map, const MapGenerationParams &params,
+                               const std::unordered_set<long long> &protectedTiles,
+                               std::mt19937 &rng);
 };

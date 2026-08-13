@@ -12,9 +12,9 @@ float AIStrategy::phaseWeightMilitary(GlobalPhase phase)
     case GlobalPhase::Phase2_OpenMap:
         return 1.3f;
     case GlobalPhase::Phase3_Final:
-        return 1.0f;
+        return 1.5f;
     }
-    return 1.0f;
+    return 1.5f;
 }
 
 float AIStrategy::phaseWeightEconomy(GlobalPhase phase)
@@ -135,6 +135,26 @@ float AIStrategy::scoreRecruitUnit(const Settlement &s, const Unit &u, GlobalPha
     if (u.getPopulationCost() > s.allocation().idle)
         return -1.0f;
 
+    if (u.isSettler())
+    {
+        float desire;
+        switch (phase)
+        {
+        case GlobalPhase::NotStarted:
+            desire = 3.0f;
+            break;
+        case GlobalPhase::Phase2_OpenMap:
+            desire = 2.4f;
+            break;
+        case GlobalPhase::Phase3_Final:
+        default:
+            desire = 0.3f;
+            break;
+        }
+        int cost = std::max(1, u.getRecruitCost());
+        return (desire * 20.0f) / static_cast<float>(cost);
+    }
+
     const auto &stats = u.getStats();
     float power = stats.attack + stats.defense + stats.health * 0.1f;
 
@@ -187,11 +207,16 @@ float AIStrategy::scorePoliticalAction(const Player &p, const PoliticalAction &a
     if (p.resources().diplomacy < static_cast<float>(a.getCost()))
         return -1.0f;
 
+    if (target.settlements().empty())
+        return -1.0f;
+
     float base = 1.0f;
     switch (a.getType())
     {
     case PoliticalActionType::PoliticalConquest:
-        base = target.resources().diplomacy < p.resources().diplomacy * 0.7f ? 3.0f : 0.2f;
+        if (p.resources().diplomacy <= target.resources().diplomacy)
+            return -1.0f;
+        base = 3.0f;
         break;
     case PoliticalActionType::Vassalize:
         base = 2.0f;
@@ -204,21 +229,11 @@ float AIStrategy::scorePoliticalAction(const Player &p, const PoliticalAction &a
         break;
     }
 
-    // ВАЖНО: раньше здесь было `base * phaseWeight / cost`. Деление на cost
-    // превращало это в "эффективность на очко потраченной дипломатии", что
-    // уместно для повторяемых, дешёвых обменов (как TradeMarket), но не для
-    // редких стратегических решений вроде Conquest/Vassalize. Conquest стоит
-    // 300, Alliance — 50 (см. assets/political_actions.json): при делении на
-    // cost Conquest против ЛЮБОЙ, даже предельно слабой цели (base=3.0)
-    // проигрывал Alliance (3.0/300=0.01 < 1.0/50=0.02) — ИИ математически не
-    // мог выбрать ничего, кроме Alliance, пока хватало очков на неё. Отсюда
-    // и наблюдаемое поведение "все заключили союз и больше ничего не
-    // происходит". Без деления на cost базовые веса действительно определяют
-    // приоритет, как и задумывалось.
     return base * phaseWeightDiplomacy(phase);
 }
 
-float AIStrategy::scoreAttack(const Army &mine, const Army &enemyArmyOrGarrisonOwner, GlobalPhase phase)
+float AIStrategy::scoreAttack(const Army &mine, const Army &enemyArmyOrGarrisonOwner,
+                              GlobalPhase phase, int enemySettlementCount)
 {
     if (mine.units().empty())
         return -1.0f;
@@ -237,12 +252,17 @@ float AIStrategy::scoreAttack(const Army &mine, const Army &enemyArmyOrGarrisonO
 
     float ratio = myPower / enemyPower;
 
-    float advantage = ratio - 1.3f;
+    float advantage = ratio - 1.15f;
 
     int distance = mine.position().distanceTo(enemyArmyOrGarrisonOwner.position());
     float distancePenalty = 1.0f / (1.0f + static_cast<float>(distance) * 0.3f);
 
-    return advantage * phaseWeightMilitary(phase) * distancePenalty;
+    float score = advantage * phaseWeightMilitary(phase) * distancePenalty;
+
+    if (enemySettlementCount == 1 && phase == GlobalPhase::Phase3_Final)
+        score += 10.0f * phaseWeightMilitary(phase);
+
+    return score;
 }
 
 float AIStrategy::scoreExpand(const Army &mine, const Coords &candidateDestination,
@@ -284,5 +304,7 @@ float AIStrategy::scoreExpand(const Army &mine, const Coords &candidateDestinati
         break;
     }
 
-    return reachPenalty * terrainBonus * phaseWeightMilitary(phase);
+    float resourceBonus = dest->getResource() != ResourceType::None ? 1.5f : 1.0f;
+
+    return reachPenalty * terrainBonus * resourceBonus * phaseWeightMilitary(phase);
 }

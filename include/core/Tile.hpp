@@ -26,11 +26,21 @@ enum class TileType
     Forest,
 };
 
+enum class ResourceType
+{
+    None,
+    Food,
+    Production,
+    Gold,
+    Science,
+};
+
 class Tile
 {
 private:
     Coords coords;
     TileType type = TileType::Grass;
+    ResourceType resource = ResourceType::None;
 
 public:
     Tile();
@@ -39,6 +49,8 @@ public:
     Coords getCoords() const { return coords; }
     TileType getType() const { return type; }
     void setType(TileType t) { type = t; }
+    ResourceType getResource() const { return resource; }
+    void setResource(ResourceType r) { resource = r; }
     bool is_nearby(const Tile &other) const { return this->coords.is_nearby(other.coords); }
     int movementCost() const;
 };

@@ -14,7 +14,8 @@ public:
     static float scoreTradeExchange(const Player &p, const std::string &targetResource, GlobalPhase phase);
     static float scorePoliticalAction(const Player &p, const PoliticalAction &a,
                                       const Player &target, GlobalPhase phase);
-    static float scoreAttack(const Army &mine, const Army &enemyArmyOrGarrisonOwner, GlobalPhase phase);
+    static float scoreAttack(const Army &mine, const Army &enemyArmyOrGarrisonOwner,
+                             GlobalPhase phase, int enemySettlementCount);
     static float scoreExpand(const Army &mine, const Coords &candidateDestination,
                              GlobalPhase phase, const Map &map);
 

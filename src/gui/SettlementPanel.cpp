@@ -3,6 +3,7 @@
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QComboBox>
+#include <QAbstractItemView>
 
 static QString formatModifiers(const Modifiers& m) {
     QStringList parts;
@@ -52,21 +53,26 @@ void SettlementPanel::setupUi() {
 
     m_scienceSpin = new QSpinBox(allocGroup);
     m_scienceSpin->setRange(0, 9999);
+    m_scienceSpin->setToolTip(QStringLiteral("Население в науке двигает исследование технологий."));
     allocLayout->addRow(QStringLiteral("Наука:"), m_scienceSpin);
 
     m_industrySpin = new QSpinBox(allocGroup);
     m_industrySpin->setRange(0, 9999);
+    m_industrySpin->setToolTip(QStringLiteral("Население в промышленности идёт на постройки и найм войск."));
     allocLayout->addRow(QStringLiteral("Промышленность:"), m_industrySpin);
 
     m_tradeSpin = new QSpinBox(allocGroup);
     m_tradeSpin->setRange(0, 9999);
+    m_tradeSpin->setToolTip(QStringLiteral("Накопленную торговлю можно обменять на другой ресурс через рынок."));
     allocLayout->addRow(QStringLiteral("Торговля:"), m_tradeSpin);
 
     m_diplomacySpin = new QSpinBox(allocGroup);
     m_diplomacySpin->setRange(0, 9999);
+    m_diplomacySpin->setToolTip(QStringLiteral("Дипломатия тратится на политические действия: союз, вассалитет, дань, поглощение."));
     allocLayout->addRow(QStringLiteral("Дипломатия:"), m_diplomacySpin);
 
     m_idleLabel = new QLabel(QStringLiteral("Свободно: 0"), allocGroup);
+    m_idleLabel->setToolTip(QStringLiteral("Незанятое население — например, чтобы набрать войска (найм тоже расходует население)."));
     allocLayout->addRow(m_idleLabel);
 
     m_applyBtn = new QPushButton(QStringLiteral("Применить"), allocGroup);
@@ -264,8 +270,26 @@ void SettlementPanel::showSettlement(Settlement& settlement,
     }
 
     m_garrisonList->clear();
+    m_garrisonList->setSelectionMode(QAbstractItemView::ExtendedSelection);
     for (const auto& u : settlement.garrison()) {
-        m_garrisonList->addItem(QString::fromStdString(u.getName()));
+        const auto& s = u.getStats();
+        QString text = QString::fromStdString(u.getName());
+        if (!u.isTrained() && u.requiresBuilding())
+            text += QStringLiteral(" (необучен)");
+
+        QString tooltip = QStringLiteral(
+            "%1\nАтака: %2\nЗащита: %3\nЗдоровье: %4/%5\nОчки хода: %6\nТренирован: %7")
+            .arg(QString::fromStdString(u.getName()))
+            .arg(s.attack, 0, 'f', 1)
+            .arg(s.defense, 0, 'f', 1)
+            .arg(u.getCurrentHealth(), 0, 'f', 1)
+            .arg(s.health, 0, 'f', 1)
+            .arg(s.movementPoints)
+            .arg(u.isTrained() ? QStringLiteral("да") : QStringLiteral("нет"));
+
+        auto* item = new QListWidgetItem(text, m_garrisonList);
+        item->setData(Qt::UserRole, QString::fromStdString(u.getId()));
+        item->setToolTip(tooltip);
     }
 
     setEnabled(true);
@@ -439,7 +463,21 @@ void SettlementPanel::onMarch() {
         emit actionFailed(QStringLiteral("Гарнизон пуст"));
         return;
     }
-    emit marchRequested();
+
+    // Если игрок явно выделил часть гарнизона — в поход идут только выбранные
+    // юниты. Если ничего не выделено — по умолчанию идёт весь гарнизон
+    // (сохраняем прежнее поведение "выступить в поход" одним кликом).
+    std::vector<std::string> unitIds;
+    auto selected = m_garrisonList->selectedItems();
+    if (!selected.isEmpty()) {
+        for (auto* item : selected)
+            unitIds.push_back(item->data(Qt::UserRole).toString().toStdString());
+    } else {
+        for (const auto& u : m_settlement->garrison())
+            unitIds.push_back(u.getId());
+    }
+
+    emit marchRequested(unitIds);
 }
 
 void SettlementPanel::onExecutePoliticalAction() {

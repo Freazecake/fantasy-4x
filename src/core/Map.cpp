@@ -20,24 +20,41 @@ Map Map::generateMap(int width, int height)
     return map;
 }
 
+static long long packTileKey(int q, int r)
+{
+    return (static_cast<long long>(q) << 32) ^ static_cast<unsigned int>(r);
+}
+
+void Map::ensureIndex() const
+{
+    if (m_index.size() == m_map.size())
+        return;
+
+    m_index.clear();
+    m_index.reserve(m_map.size());
+    for (size_t i = 0; i < m_map.size(); ++i)
+    {
+        const auto &c = m_map[i].getCoords();
+        m_index[packTileKey(c.q, c.r)] = i;
+    }
+}
+
 const Tile *Map::tileAt(int q, int r) const
 {
-    for (const auto &tile : m_map)
-    {
-        if (tile.getCoords().q == q && tile.getCoords().r == r)
-            return &tile;
-    }
-    return nullptr;
+    ensureIndex();
+    auto it = m_index.find(packTileKey(q, r));
+    if (it == m_index.end())
+        return nullptr;
+    return &m_map[it->second];
 }
 
 Tile *Map::tileAt(int q, int r)
 {
-    for (auto &tile : m_map)
-    {
-        if (tile.getCoords().q == q && tile.getCoords().r == r)
-            return &tile;
-    }
-    return nullptr;
+    ensureIndex();
+    auto it = m_index.find(packTileKey(q, r));
+    if (it == m_index.end())
+        return nullptr;
+    return &m_map[it->second];
 }
 
 std::vector<Coords> Map::reachableTiles(Coords from, int movementBudget) const

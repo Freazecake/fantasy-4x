@@ -280,6 +280,13 @@ TEST_CASE("AIStrategy::scorePoliticalAction: PoliticalConquest выше прот
     p.addSettlement(s);
     p.advanceTurn();
 
+    Settlement sw(0, SettlementType::Village);
+    sw.seedInitialPopulation(20);
+    weak.addSettlement(sw);
+    Settlement ss(1, SettlementType::Village);
+    ss.seedInitialPopulation(20);
+    strong.addSettlement(ss);
+
     auto conquest = makeAction("pa_conquest", "politicalConquest", 30);
 
     float scoreWeak = AIStrategy::scorePoliticalAction(p, conquest, weak, GlobalPhase::NotStarted);
@@ -294,7 +301,7 @@ TEST_CASE("AIStrategy::scoreAttack: -1 для пустой армии")
     Army me("me", 0, {0, 0}, {});
     Army enemy("enemy", 1, {1, 0}, {makeUnit("u", 0, "", 5, 2, 20)});
 
-    float score = AIStrategy::scoreAttack(me, enemy, GlobalPhase::NotStarted);
+    float score = AIStrategy::scoreAttack(me, enemy, GlobalPhase::NotStarted, 0);
     CHECK(score < 0.0f);
 }
 
@@ -303,7 +310,7 @@ TEST_CASE("AIStrategy::scoreAttack: 5*factor если враг пуст")
     Army me("me", 0, {0, 0}, {makeUnit("u", 0, "", 5, 2, 20)});
     Army empty("empty", 1, {1, 0}, {});
 
-    float score = AIStrategy::scoreAttack(me, empty, GlobalPhase::NotStarted);
+    float score = AIStrategy::scoreAttack(me, empty, GlobalPhase::NotStarted, 0);
     CHECK(score > 0.0f);
 }
 
@@ -315,7 +322,7 @@ TEST_CASE("AIStrategy::scoreAttack: сильный бьёт слабого — �
     Army me("me", 0, {0, 0}, {strongU});
     Army enemy("enemy", 1, {1, 0}, {weakU});
 
-    float score = AIStrategy::scoreAttack(me, enemy, GlobalPhase::NotStarted);
+    float score = AIStrategy::scoreAttack(me, enemy, GlobalPhase::NotStarted, 0);
     CHECK(score > 0.0f);
 }
 
@@ -428,6 +435,10 @@ TEST_CASE("AIController::decidePoliticalAction: выбирает Conquest про
     Settlement &settlement = human.settlements()[0];
     settlement.assignFromIdle(Sphere::Diplomacy, 40);
     human.advanceTurn();
+
+    Resources budget;
+    budget.diplomacy = 180.0f;
+    human.addResources(budget);
 
     auto conquest = makeAction("pa_conquest", "politicalConquest", 30);
     auto alliance = makeAction("pa_alliance", "alliance", 10);
@@ -574,4 +585,198 @@ TEST_CASE("AIController::takeTurn: 3 хода двух AI игроков")
     }
 
     CHECK(state.turnNumber() == 3);
+}
+
+TEST_CASE("AIController::decideTradeExchange: реально обменивает торговлю на дефицитный ресурс")
+{
+    GameState state;
+    Player p;
+    p.setId(0);
+    p.setRace(makeRace("humans", 1, 1, 1, 1, 1, 1));
+
+    Resources r;
+    r.trade = 100.0f;
+    r.science = 0.0f;
+    r.industry = 0.0f;
+    r.diplomacy = 0.0f;
+    p.addResources(r);
+
+    float tradeBefore = p.resources().trade;
+    AIController::decideTradeExchange(p, state, GlobalPhase::Phase2_OpenMap);
+
+    CHECK(p.resources().trade < tradeBefore);
+    CHECK(p.resources().science + p.resources().industry + p.resources().diplomacy > 0.0f);
+    CHECK(state.turnEvents().size() == 1u);
+    CHECK(state.turnEvents()[0].type == TurnEventType::TradeExchange);
+}
+
+TEST_CASE("AIController::decideTradeExchange: не трогает торговлю, если её меньше единицы")
+{
+    GameState state;
+    Player p;
+    p.setId(0);
+    p.setRace(makeRace("humans", 1, 1, 1, 1, 1, 1));
+
+    Resources r;
+    r.trade = 0.5f;
+    p.addResources(r);
+
+    AIController::decideTradeExchange(p, state, GlobalPhase::Phase2_OpenMap);
+
+    CHECK_NEAR(p.resources().trade, 0.5f, 0.001f);
+    CHECK(state.turnEvents().empty());
+}
+
+TEST_CASE("AIController::decideSettlerActions: основывает город прямо на месте, если клетка годится")
+{
+    GameState state;
+    state.setMap(Map::generateMap(10, 10));
+
+    Player p;
+    p.setId(0);
+    p.setRace(makeRace("humans", 1, 1, 1, 1, 1, 1));
+
+    Unit settler = Unit::loadFromJson({
+        {"id", "settler"}, {"name", "Поселенец"},
+        {"stats", {{"health", 10}, {"attack", 0}, {"defense", 1}, {"movementPoints", 2}}},
+        {"tier", 0}, {"requiredBuildingId", ""}, {"recruitCost", 60}, {"populationCost", 80},
+        {"isSettler", true}
+    });
+    p.addArmy(Army("settler_army", 0, {5, 5}, {settler}));
+    state.addPlayer(p);
+
+    AIController::decideSettlerActions(state.players()[0], state, GlobalPhase::Phase2_OpenMap);
+
+    CHECK(state.players()[0].settlements().size() == 1u);
+    CHECK(state.players()[0].armies().empty()); // поселенец израсходован
+}
+
+TEST_CASE("AIController::decideSettlerActions: не основывает город на клетке своей же столицы, уходит искать другую")
+{
+    GameState state;
+    state.setMap(Map::generateMap(10, 10));
+
+    Player p;
+    p.setId(0);
+    p.setRace(makeRace("humans", 1, 1, 1, 1, 1, 1));
+
+    Settlement capital(0, SettlementType::Village);
+    for (int dx = -1; dx <= 1; ++dx)
+        for (int dy = -1; dy <= 1; ++dy)
+            capital.addTile(Tile(5 + dx, 5 + dy));
+    capital.seedInitialPopulation(50);
+    p.addSettlement(capital);
+
+    Unit settler = Unit::loadFromJson({
+        {"id", "settler"}, {"name", "Поселенец"},
+        {"stats", {{"health", 10}, {"attack", 0}, {"defense", 1}, {"movementPoints", 3}}},
+        {"tier", 0}, {"requiredBuildingId", ""}, {"recruitCost", 60}, {"populationCost", 80},
+        {"isSettler", true}
+    });
+    // Поселенец стоит внутри клеток своей же столицы — здесь основать нельзя.
+    p.addArmy(Army("settler_army", 0, {5, 5}, {settler}));
+    state.addPlayer(p);
+
+    AIController::decideSettlerActions(state.players()[0], state, GlobalPhase::Phase2_OpenMap);
+
+    CHECK(state.players()[0].settlements().size() == 1u); // новый город ещё не основан
+    Army *army = state.findArmy("settler_army");
+    CHECK(army != nullptr);
+    CHECK(!(army->position().q == 5 && army->position().r == 5)); // ушёл искать другое место
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Блок 3.5: playtest выявил, что гарнизон никогда не выводился в поле —
+// decideDeployment закрывает этот пробел.
+// ═══════════════════════════════════════════════════════════════════════
+
+TEST_CASE("AIController::decideDeployment: гарнизон выше порога выводится в армию, "
+          "минимальный резерв остаётся в городе")
+{
+    GameState state;
+    state.setMap(Map::generateMap(10, 10));
+
+    Player p;
+    p.setId(0);
+    p.setRace(makeRace("humans", 1, 1, 1, 1, 1, 1));
+
+    Settlement s(0, SettlementType::Village);
+    for (int dx = -1; dx <= 1; ++dx)
+        for (int dy = -1; dy <= 1; ++dy)
+            s.addTile(Tile(5 + dx, 5 + dy));
+
+    std::vector<Unit> garrison;
+    for (int i = 0; i < 8; ++i)
+        garrison.push_back(makeUnit("militia", 0, "", 3, 2, 20, 15, 20));
+    s.addToGarrison(garrison);
+
+    p.addSettlement(s);
+    state.addPlayer(p);
+
+    AIController::decideDeployment(state.players()[0]);
+
+    Settlement &after = state.players()[0].settlements()[0];
+    CHECK(after.garrison().size() >= 1u); // резерв остался
+    CHECK(after.garrison().size() < 8u);  // но часть точно вывели
+
+    int deployedUnits = 0;
+    for (const auto &a : state.players()[0].armies())
+        deployedUnits += static_cast<int>(a.units().size());
+    CHECK(deployedUnits > 0);
+    CHECK(deployedUnits + static_cast<int>(after.garrison().size()) == 8);
+}
+
+TEST_CASE("AIController::decideDeployment: маленький гарнизон (не выше порога) не трогаем")
+{
+    GameState state;
+    state.setMap(Map::generateMap(10, 10));
+
+    Player p;
+    p.setId(0);
+    p.setRace(makeRace("humans", 1, 1, 1, 1, 1, 1));
+
+    Settlement s(0, SettlementType::Village);
+    s.addTile(Tile(5, 5));
+    s.addToGarrison({makeUnit("militia", 0, "", 3, 2, 20, 15, 20)});
+    p.addSettlement(s);
+    state.addPlayer(p);
+
+    AIController::decideDeployment(state.players()[0]);
+
+    CHECK(state.players()[0].settlements()[0].garrison().size() == 1u);
+    CHECK(state.players()[0].armies().empty());
+}
+
+TEST_CASE("AIController::decideDeployment: поселенцы выводятся каждый в отдельную "
+          "\"чистую\" армию, а не смешиваются с бойцами")
+{
+    GameState state;
+    state.setMap(Map::generateMap(10, 10));
+
+    Player p;
+    p.setId(0);
+    p.setRace(makeRace("humans", 1, 1, 1, 1, 1, 1));
+
+    Settlement s(0, SettlementType::Village);
+    s.addTile(Tile(5, 5));
+
+    Unit settler1 = Unit::loadFromJson({
+        {"id", "settler"}, {"name", "Поселенец"},
+        {"stats", {{"health", 10}, {"attack", 0}, {"defense", 1}, {"movementPoints", 2}}},
+        {"tier", 0}, {"requiredBuildingId", ""}, {"recruitCost", 60}, {"populationCost", 80},
+        {"isSettler", true}
+    });
+    s.addToGarrison({settler1, settler1}); // два поселенца одновременно в гарнизоне
+    p.addSettlement(s);
+    state.addPlayer(p);
+
+    AIController::decideDeployment(state.players()[0]);
+
+    CHECK(state.players()[0].settlements()[0].garrison().empty());
+    CHECK(state.players()[0].armies().size() == 2u); // каждый поселенец — своя армия
+    for (const auto &a : state.players()[0].armies())
+    {
+        CHECK(a.isSettlerArmy());
+        CHECK(a.units().size() == 1u); // ровно один поселенец на армию
+    }
 }

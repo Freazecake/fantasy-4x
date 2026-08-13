@@ -24,6 +24,8 @@
 #include "core/Technology.hpp"
 #include "core/Hero.hpp"
 #include "core/PoliticalAction.hpp"
+#include "core/ResourceCatalog.hpp"
+#include "core/GameEngine.hpp"
 
 #include <fstream>
 #include <unordered_map>
@@ -356,4 +358,147 @@ TEST_CASE("assets/political_actions.json: каждое действие груз
     CHECK(actions.size() == assets.at("politicalActions").size());
     for (const auto &a : actions)
         CHECK(a.getCost() >= 0);
+}
+
+TEST_CASE("assets/tiles.json парсится, у ресурсов уникальные типы и непустой список местности")
+{
+    json assets = loadJsonFile("tiles.json");
+    const auto &resources = assets.at("resources");
+    CHECK(resources.size() > 0u);
+
+    std::unordered_set<std::string> types;
+    for (const auto &r : resources)
+    {
+        types.insert(r.at("type").get<std::string>());
+        CHECK(r.at("allowedTerrains").size() > 0u);
+        CHECK(r.at("bonus").get<float>() > 0.0f);
+    }
+    CHECK(types.size() == resources.size()); // типы ресурсов не повторяются
+
+    CHECK(assets.at("resourceDensity").get<float>() >= 0.0f);
+    CHECK(assets.at("resourceDensity").get<float>() <= 1.0f);
+}
+
+TEST_CASE("assets/tiles.json: каждый ресурс грузится в ResourceDef без исключений")
+{
+    json assets = loadJsonFile("tiles.json");
+    auto defs = ResourceCatalog::loadAllFromJson(assets.at("resources"));
+    CHECK(defs.size() == assets.at("resources").size());
+
+    for (const auto &def : defs)
+        CHECK(def.type != ResourceType::None); // все типы из файла распознаны
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Блок 3.12: расширение контента
+// ═══════════════════════════════════════════════════════════════════════
+
+TEST_CASE("assets/units.json: есть полная линейка юнитов militia->tier3 (минимум 7 боевых + поселенец)")
+{
+    json assets = loadJsonFile("units.json");
+    const auto &units = assets.at("units");
+
+    std::unordered_set<std::string> ids;
+    int combatUnits = 0;
+    bool hasSettler = false;
+    std::unordered_set<int> tiersSeen;
+
+    for (const auto &u : units)
+    {
+        ids.insert(u.at("id").get<std::string>());
+        if (u.value("isSettler", false))
+            hasSettler = true;
+        else
+            ++combatUnits;
+        tiersSeen.insert(u.at("tier").get<int>());
+    }
+
+    CHECK(combatUnits >= 7);
+    CHECK(hasSettler);
+    for (const char *id : {"militia", "swordsman", "archer", "cavalry", "knight", "berserker", "siege"})
+        CHECK(ids.count(id) == 1u);
+
+    // Прогрессия хотя бы по трём уровням сложности (0..3).
+    CHECK(tiersSeen.count(0) == 1u);
+    CHECK(tiersSeen.count(1) == 1u);
+    CHECK(tiersSeen.count(2) == 1u);
+    CHECK(tiersSeen.count(3) == 1u);
+}
+
+TEST_CASE("assets/buildings.json: военная ветка построек (казарма/конюшня/академия/осадный двор) на месте")
+{
+    json assets = loadJsonFile("buildings.json");
+    const auto &buildings = assets.at("buildings");
+
+    std::unordered_set<std::string> ids;
+    for (const auto &b : buildings)
+        ids.insert(b.at("id").get<std::string>());
+
+    for (const char *id : {"barracks", "stable", "war_academy", "siege_workshop", "university", "bank"})
+        CHECK(ids.count(id) == 1u);
+}
+
+TEST_CASE("assets/technologies.json: военная ветка технологий образует цепочку без пропусков")
+{
+    json assets = loadJsonFile("technologies.json");
+    const auto &techs = assets.at("technologies");
+
+    auto findTech = [&techs](const std::string &id) -> json
+    {
+        for (const auto &t : techs)
+            if (t.at("id").get<std::string>() == id)
+                return t;
+        return json();
+    };
+
+    json t1 = findTech("tech_military_1");
+    json t2 = findTech("tech_military_2");
+    json t3 = findTech("tech_military_3");
+
+    CHECK(!t1.is_null());
+    CHECK(!t2.is_null());
+    CHECK(!t3.is_null());
+
+    CHECK(t1.at("prerequisiteIds").empty());
+
+    bool t2NeedsT1 = false;
+    for (const auto &p : t2.at("prerequisiteIds"))
+        if (p.get<std::string>() == "tech_military_1")
+            t2NeedsT1 = true;
+    CHECK(t2NeedsT1);
+
+    bool t3NeedsT2 = false;
+    for (const auto &p : t3.at("prerequisiteIds"))
+        if (p.get<std::string>() == "tech_military_2")
+            t3NeedsT2 = true;
+    CHECK(t3NeedsT2);
+}
+
+TEST_CASE("GameEngine::loadFromAssets: полный расширенный каталог грузится без ошибок")
+{
+    GameEngine engine;
+    CHECK(engine.loadFromAssets(ASSETS_DIR, 5050));
+
+    CHECK(engine.unitCatalog().size() >= 8u);
+    CHECK(engine.buildingCatalog().size() >= 14u);
+    CHECK(engine.techCatalog().size() >= 16u);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Блок 3.15: правила и обучение
+// ═══════════════════════════════════════════════════════════════════════
+
+TEST_CASE("assets/rules.md существует и содержит ключевые понятия (фазы, сферы, победа)")
+{
+    std::ifstream file(std::string(ASSETS_DIR) + "/rules.md");
+    CHECK(file.is_open());
+
+    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    CHECK(content.size() > 500u); // не заглушка на пару строк
+
+    for (const char *term : {"Военная победа", "Политическая победа", "Наука", "Индустрия",
+                             "Торговля", "Дипломатия", "Фазы", "доход"})
+    {
+        CHECK(content.find(term) != std::string::npos);
+    }
 }

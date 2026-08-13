@@ -1,4 +1,5 @@
 #include "core/Player.hpp"
+#include "core/Map.hpp"
 
 Player::Player() {}
 
@@ -78,14 +79,14 @@ void Player::spendIndustryOnQueues(Settlement &settlement)
         m_economy.addResource("industry", leftover);
 }
 
-void Player::advanceTurn()
+void Player::advanceTurn(const std::vector<ResourceDef> &resourceCatalog)
 {
     Resources totalIncome;
 
     for (auto &settlement : m_settlements)
     {
         Resources income = Economy::computeSettlementIncome(
-            settlement, m_race.getModifiers(), settlement.builtBuildings(), m_heroes);
+            settlement, m_race.getModifiers(), settlement.builtBuildings(), m_heroes, resourceCatalog);
 
         int currentIndustry = static_cast<int>(income.industry);
 
@@ -121,7 +122,12 @@ float Player::effectiveTradeMultiplier() const
     if (m_allianceBonus)
         multiplier *= 1.2;
 
-    return multiplier;
+    float buildingBonus = 0.0f;
+    for (const auto &settlement : m_settlements)
+        for (const auto &building : settlement.builtBuildings())
+            buildingBonus += (building.getModifiers().trade - 1.0f);
+
+    return multiplier * (1.0f + buildingBonus);
 }
 
 bool Player::exchangeTrade(const std::string &targetResource, int tradeToSpend)
@@ -142,6 +148,20 @@ Resources Player::takeFractionFromEconomy(float fraction)
     return taken;
 }
 
+Resources Player::takeCappedFractionFromEconomy(float fraction, float capPerResource)
+{
+    Resources total = m_economy.totals();
+    Resources taken = total * fraction;
+    taken.science = std::min(taken.science, capPerResource);
+    taken.industry = std::min(taken.industry, capPerResource);
+    taken.trade = std::min(taken.trade, capPerResource);
+    taken.diplomacy = std::min(taken.diplomacy, capPerResource);
+    taken.growth = 0.0f;
+    taken.military = 0.0f;
+    m_economy.accumulate(taken * (-1.0f));
+    return taken;
+}
+
 void Player::addResources(const Resources &res)
 {
     m_economy.accumulate(res);
@@ -150,6 +170,23 @@ void Player::addResources(const Resources &res)
 bool Player::trySpendOnPoliticalAction(const PoliticalAction &action)
 {
     return m_economy.trySpendDiplomacy(action.getCost());
+}
+
+bool Player::trySpendDiplomacy(int amount)
+{
+    return m_economy.trySpendDiplomacy(amount);
+}
+
+float Player::militaryPower() const
+{
+    float power = 0.0f;
+    for (const auto &s : m_settlements)
+        for (const auto &u : s.garrison())
+            power += u.getStats().attack + u.getStats().defense + u.getCurrentHealth() * 0.1f;
+    for (const auto &a : m_armies)
+        for (const auto &u : a.units())
+            power += u.getStats().attack + u.getStats().defense + u.getCurrentHealth() * 0.1f;
+    return power;
 }
 
 Army Player::detachArmy(Settlement &from, const std::vector<std::string> &unitIds)
@@ -178,5 +215,45 @@ void Player::removeArmy(const std::string &id)
             m_armies.erase(it);
             return;
         }
+    }
+}
+
+void Player::recomputeVisibility(const Map &map, int visionRadius)
+{
+    m_visibleTiles.clear();
+
+    std::vector<Coords> centers;
+    for (const auto &s : m_settlements)
+        for (const auto &t : s.tiles())
+            centers.push_back(t.getCoords());
+    for (const auto &a : m_armies)
+        centers.push_back(a.position());
+
+    if (centers.empty())
+        return;
+
+    for (const auto &tile : map.getMap())
+    {
+        Coords c = tile.getCoords();
+        for (const auto &center : centers)
+        {
+            if (center.distanceTo(c) <= visionRadius)
+            {
+                m_visibleTiles.insert({c.q, c.r});
+                break;
+            }
+        }
+    }
+
+    for (const auto &v : m_visibleTiles)
+        m_exploredTiles.insert(v);
+}
+
+void Player::shareVisibility(const std::set<std::pair<int, int>> &tiles)
+{
+    for (const auto &t : tiles)
+    {
+        m_visibleTiles.insert(t);
+        m_exploredTiles.insert(t);
     }
 }

@@ -22,7 +22,7 @@
             "id": "pa_political_conquest",
             "name": "Политическое поглощение",
             "type": "politicalConquest",
-            "diplomacyCost": 300
+            "diplomacyCost": 200
         }
     ]
 }

@@ -52,6 +52,7 @@ add_executable(game_tests
     ${GAME_ROOT}/src/core/Tile.cpp
     ${GAME_ROOT}/src/core/Map.cpp
     ${GAME_ROOT}/src/core/MapGenerator.cpp
+    ${GAME_ROOT}/src/core/ResourceCatalog.cpp
     ${GAME_ROOT}/src/core/Settlement.cpp
     ${GAME_ROOT}/src/core/Building.cpp
     ${GAME_ROOT}/src/core/Technology.cpp

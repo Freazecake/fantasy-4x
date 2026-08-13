@@ -42,7 +42,9 @@ public:
                    const std::vector<SettlementMarker> &settlementTiles = {},
                    const std::vector<Army> &armies = {},
                    int viewerPlayerId = 0,
-                   const std::map<int, PlayerRelation> &relations = {});
+                   const std::map<int, PlayerRelation> &relations = {},
+                   const std::set<std::pair<int, int>> *exploredTiles = nullptr,
+                   const std::set<std::pair<int, int>> *visibleTiles = nullptr);
 
     void setReachableTiles(const std::set<std::pair<int, int>> &tiles);
     void clearReachableTiles();
@@ -67,6 +69,10 @@ private:
 
     std::map<std::pair<int, int>, QGraphicsPolygonItem *> m_hexItems;
     std::map<std::pair<int, int>, TileType> m_tileTypes;
+    std::map<std::pair<int, int>, ResourceType> m_tileResources;
+    bool m_fogEnabled = false;
+    std::set<std::pair<int, int>> m_exploredTiles;
+    std::set<std::pair<int, int>> m_visibleTiles;
     std::map<std::pair<int, int>, int> m_settlementOwners;
     int m_viewerPlayerId = 0;
     std::map<int, PlayerRelation> m_playerRelations;

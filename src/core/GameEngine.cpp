@@ -6,6 +6,8 @@
 #include "external/json.hpp"
 
 #include <fstream>
+#include <string>
+#include <algorithm>
 
 static json loadFile(const std::string &path)
 {
@@ -67,14 +69,18 @@ static Player createPlayer(int id, bool isHuman, const Race &race,
     return p;
 }
 
-bool GameEngine::loadFromAssets(const std::string &assetsDir)
+bool GameEngine::loadFromAssets(const std::string &assetsDir, const GameStartOptions &options,
+                                unsigned int mapSeed)
 {
+    m_assetsDir = assetsDir;
+
     json racesJson = loadFile(assetsDir + "/races.json");
     json buildingsJson = loadFile(assetsDir + "/buildings.json");
     json techJson = loadFile(assetsDir + "/technologies.json");
     json heroesJson = loadFile(assetsDir + "/heroes.json");
     json unitsJson = loadFile(assetsDir + "/units.json");
     json politicsJson = loadFile(assetsDir + "/political_actions.json");
+    json tilesJson = loadFile(assetsDir + "/tiles.json");
 
     if (racesJson.is_null() || buildingsJson.is_null() ||
         techJson.is_null() || heroesJson.is_null() || unitsJson.is_null() ||
@@ -85,6 +91,12 @@ bool GameEngine::loadFromAssets(const std::string &assetsDir)
     m_techCatalog = Technology::loadAllFromJson(techJson["technologies"]);
     m_unitCatalog = Unit::loadAllFromJson(unitsJson["units"]);
     m_politicalActionCatalog = PoliticalAction::loadAllFromJson(politicsJson["politicalActions"]);
+    float resourceDensity = 0.0f;
+    if (!tilesJson.is_null())
+    {
+        m_resourceCatalog = ResourceCatalog::loadAllFromJson(tilesJson["resources"]);
+        resourceDensity = tilesJson.value("resourceDensity", 0.0f);
+    }
 
     std::vector<Race> allRaces;
     for (const auto &r : racesJson["races"])
@@ -99,6 +111,8 @@ bool GameEngine::loadFromAssets(const std::string &assetsDir)
     };
 
     auto allHeroes = Hero::loadAllFromJson(heroesJson["heroes"]);
+    m_raceCatalog = allRaces;
+    m_heroCatalog = allHeroes;
 
     Unit startingUnit = m_unitCatalog.front();
     for (const auto &u : m_unitCatalog)
@@ -111,30 +125,39 @@ bool GameEngine::loadFromAssets(const std::string &assetsDir)
     }
 
     MapGenerationParams mapParams;
-    mapParams.width = StartLayout::MAP_WIDTH;
-    mapParams.height = StartLayout::MAP_HEIGHT;
-    mapParams.guaranteedLandCenters = StartLayout::pentagonCapitals();
+    mapParams.width = options.mapWidth;
+    mapParams.height = options.mapHeight;
+    int numPlayers = std::clamp(options.numBots, 1, 4) + 1;
+    auto capitals = StartLayout::capitalsForPlayerCount(numPlayers, options.mapWidth, options.mapHeight);
+    mapParams.guaranteedLandCenters = capitals;
     mapParams.guaranteedLandRadius = StartLayout::CAPITAL_LAND_RADIUS;
+    mapParams.resourceCatalog = m_resourceCatalog;
+    mapParams.resourceDensity = resourceDensity;
+    mapParams.seed = mapSeed;
     Map gameMap = MapGenerator::generate(mapParams);
 
-    const std::vector<std::string> botRaceIds = {"dwarves", "gnomes", "elves", "orcs"};
-    const auto &capitals = StartLayout::pentagonCapitals();
+    std::vector<std::string> botRaceIds;
+    for (const auto &r : allRaces)
+        if (r.getId() != options.humanRaceId)
+            botRaceIds.push_back(r.getId());
+    int numBots = std::min(static_cast<int>(botRaceIds.size()), std::clamp(options.numBots, 1, 4));
 
-    Player human = createPlayer(0, true, raceById("humans"), allHeroes,
+    Player human = createPlayer(0, true, raceById(options.humanRaceId), allHeroes,
                                 m_techCatalog, startingUnit, capitals[0],
-                                StartLayout::MAP_WIDTH, StartLayout::MAP_HEIGHT);
+                                options.mapWidth, options.mapHeight);
     m_state.addPlayer(human);
 
-    for (size_t i = 0; i < botRaceIds.size(); ++i)
+    for (int i = 0; i < numBots; ++i)
     {
-        Player bot = createPlayer(static_cast<int>(i) + 1, false,
+        Player bot = createPlayer(i + 1, false,
                                   raceById(botRaceIds[i]), allHeroes,
                                   m_techCatalog, startingUnit, capitals[i + 1],
-                                  StartLayout::MAP_WIDTH, StartLayout::MAP_HEIGHT);
+                                  options.mapWidth, options.mapHeight);
         m_state.addPlayer(bot);
     }
 
     m_state.setMap(gameMap);
+    m_state.recomputeVisibility();
 
     return true;
 }
@@ -157,6 +180,21 @@ std::string GameEngine::applyPoliticalAction(int playerId, const std::string &ac
         if (a.getId() != actionId)
             continue;
 
+        if (a.getType() == PoliticalActionType::PoliticalConquest)
+        {
+            if (!target)
+                return "Цель не найдена";
+            if (!m_state.canPoliticalConquer(playerId, targetId))
+                return "Цель слишком сильна для политического поглощения";
+            if (!player->trySpendDiplomacy(m_state.politicalConquestCost(playerId, targetId)))
+                return "Недостаточно дипломатии";
+            if (!m_state.applyPoliticalConquest(playerId, targetId))
+                return "Политическое поглощение не удалось";
+            if (m_state.checkVictory().hasWinner())
+                return "ПОЛИТИЧЕСКАЯ ПОБЕДА!";
+            return "Политическое поглощение проведено";
+        }
+
         if (!player->trySpendOnPoliticalAction(a))
             return "Недостаточно дипломатии";
 
@@ -166,6 +204,7 @@ std::string GameEngine::applyPoliticalAction(int playerId, const std::string &ac
             if (!target)
                 return "Цель не найдена";
             m_state.newAlliance(*player, *target, m_state.turnNumber() + 5);
+            m_state.recomputeVisibility();
             return "Союз заключён";
 
         case PoliticalActionType::DemandTribute:
@@ -181,12 +220,7 @@ std::string GameEngine::applyPoliticalAction(int playerId, const std::string &ac
             return "Вассализация проведена";
 
         case PoliticalActionType::PoliticalConquest:
-            if (!target)
-                return "Цель не найдена";
-            m_state.applyPoliticalConquest(playerId, targetId);
-            if (m_state.checkVictory().hasWinner())
-                return "ПОЛИТИЧЕСКАЯ ПОБЕДА!";
-            return "Политическое поглощение проведено";
+            return "Политическое поглощение не удалось";
         }
     }
     return "Действие не найдено";
@@ -194,6 +228,27 @@ std::string GameEngine::applyPoliticalAction(int playerId, const std::string &ac
 
 void GameEngine::endTurn()
 {
+    m_state.clearTurnEvents();
+
+    for (auto &player : m_state.players())
+    {
+        for (auto &settlement : player.settlements())
+        {
+            int foodBonus = 0;
+            for (const auto &tile : settlement.tiles())
+            {
+                if (tile.getResource() == ResourceType::None)
+                    continue;
+                const ResourceDef *def = ResourceCatalog::find(m_resourceCatalog, tile.getResource());
+                if (def && def->sphere == "growth")
+                    foodBonus += static_cast<int>(def->bonus);
+            }
+
+            settlement.growPopulation(DEFAULT_BASE_GROWTH_RATE,
+                                      player.race().getModifiers().growth, foodBonus);
+        }
+    }
+
     for (auto &player : m_state.players())
     {
         if (!player.isHuman())
@@ -202,25 +257,52 @@ void GameEngine::endTurn()
                                    m_techCatalog, m_unitCatalog,
                                    m_politicalActionCatalog);
         }
-        player.advanceTurn();
+        player.advanceTurn(m_resourceCatalog);
+
+        for (auto &settlement : player.settlements())
+            player.spendIndustryOnQueues(settlement);
     }
 
     m_state.processVassalage();
-
-    for (auto &player : m_state.players())
-    {
-        for (auto &settlement : player.settlements())
-        {
-            settlement.growPopulation(DEFAULT_BASE_GROWTH_RATE,
-                                      player.race().getModifiers().growth);
-            player.spendIndustryOnQueues(settlement);
-        }
-    }
     m_state.checkAlliances();
 
     for (auto &player : m_state.players())
         for (auto &army : player.armies())
             army.resetMovement();
 
+    m_state.updatePhase();
     m_state.nextTurn();
+    m_state.recomputeVisibility();
+
+    VictoryResult v = m_state.checkVictory();
+    if (v.hasWinner())
+    {
+        m_state.pushEvent(TurnEventType::Victory, v.winnerId, -1,
+                          "Игрок " + std::to_string(v.winnerId) + " одержал победу (" +
+                              v.type + ")");
+    }
+}
+
+bool GameEngine::saveGame(const std::string &path) const
+{
+    json j = m_state.toJson();
+    std::ofstream file(path);
+    if (!file.is_open())
+        return false;
+    file << j.dump(2);
+    return file.good();
+}
+
+bool GameEngine::loadGame(const std::string &path, const std::string &assetsDir)
+{
+    if (!loadFromAssets(assetsDir))
+        return false;
+
+    json j = loadFile(path);
+    if (j.is_null())
+        return false;
+
+    m_state = GameState::fromJson(j, m_raceCatalog, m_heroCatalog, m_techCatalog,
+                                  m_buildingCatalog, m_unitCatalog);
+    return true;
 }
