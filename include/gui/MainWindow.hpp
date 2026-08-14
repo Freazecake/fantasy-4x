@@ -37,6 +37,10 @@ private:
     QWidget *buildGameView();
     void refreshAllPanels();
     void showVictoryDialog(const VictoryResult &v);
+    void showDefeatDialog();
+    Player *humanPlayer();
+    int humanId();
+    bool humanIsDefeated();
     Settlement *selectedHumanSettlement(Player &human);
     void selectSettlement(const Settlement &settlement);
 
@@ -54,4 +58,5 @@ private:
     Coords m_selectedSettlementAnchor{-1, -1};
     bool m_hasSelectedSettlement = false;
     std::string m_selectedArmyId;
+    bool m_spectatorMode = false;
 };

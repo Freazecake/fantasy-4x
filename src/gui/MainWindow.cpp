@@ -7,6 +7,7 @@
 #include "gui/StartMenuWidget.hpp"
 #include "gui/TurnReportDialog.hpp"
 #include "gui/VictoryDialog.hpp"
+#include "gui/DefeatDialog.hpp"
 #include "gui/RulesDialog.hpp"
 
 #include <QMenuBar>
@@ -177,7 +178,10 @@ QWidget *MainWindow::buildGameView()
     connect(m_techTreePanel, &TechTreePanel::researchRequested, this,
             [this](const std::string &techId)
             {
-                m_engine.state().players()[0].setCurrentResearch(techId);
+                Player *human = humanPlayer();
+                if (!human || m_spectatorMode)
+                    return;
+                human->setCurrentResearch(techId);
                 refreshAllPanels();
                 statusBar()->showMessage(
                     QStringLiteral("Начато исследование: %1").arg(QString::fromStdString(techId)));
@@ -187,17 +191,25 @@ QWidget *MainWindow::buildGameView()
             { refreshAllPanels(); });
     connect(m_settlementPanel, &SettlementPanel::buildingQueued, this, [this](const std::string &)
             {
-        Player& human = m_engine.state().players()[0];
+        if (m_spectatorMode)
+            return;
+        Player *human = humanPlayer();
+        if (!human)
+            return;
         Settlement* settlement = m_settlementPanel->currentSettlement();
         if (settlement)
-            human.spendIndustryOnQueues(*settlement);
+            human->spendIndustryOnQueues(*settlement);
         refreshAllPanels(); });
     connect(m_settlementPanel, &SettlementPanel::unitRecruitmentQueued, this, [this](const std::string &)
             {
-        Player& human = m_engine.state().players()[0];
+        if (m_spectatorMode)
+            return;
+        Player *human = humanPlayer();
+        if (!human)
+            return;
         Settlement* settlement = m_settlementPanel->currentSettlement();
         if (settlement)
-            human.spendIndustryOnQueues(*settlement);
+            human->spendIndustryOnQueues(*settlement);
         refreshAllPanels(); });
     connect(m_settlementPanel, &SettlementPanel::actionFailed, this, [this](const QString &msg)
             { statusBar()->showMessage(msg, 5000); });
@@ -206,8 +218,10 @@ QWidget *MainWindow::buildGameView()
     connect(m_settlementPanel, &SettlementPanel::tradeExchangeRequested, this,
             [this](const std::string &targetResource, int amount)
             {
-                Player &human = m_engine.state().players()[0];
-                if (human.exchangeTrade(targetResource, amount))
+                Player *human = humanPlayer();
+                if (!human || m_spectatorMode)
+                    return;
+                if (human->exchangeTrade(targetResource, amount))
                 {
                     statusBar()->showMessage(
                         QStringLiteral("Обмен совершён: %1 ед. торговли → %2").arg(amount).arg(QString::fromStdString(targetResource)), 3000);
@@ -222,7 +236,10 @@ QWidget *MainWindow::buildGameView()
     connect(m_settlementPanel, &SettlementPanel::politicalActionRequested, this,
             [this](const std::string &actionId, int targetId)
             {
-                std::string msg = m_engine.applyPoliticalAction(0, actionId, targetId);
+                Player *human = humanPlayer();
+                if (!human || m_spectatorMode)
+                    return;
+                std::string msg = m_engine.applyPoliticalAction(human->id(), actionId, targetId);
                 statusBar()->showMessage(QString::fromStdString(msg), 5000);
 
                 auto v = m_engine.checkVictoryCondition();
@@ -267,10 +284,31 @@ void MainWindow::selectSettlement(const Settlement &settlement)
     m_hasSelectedSettlement = true;
 }
 
+Player *MainWindow::humanPlayer()
+{
+    for (auto &p : m_engine.state().players())
+        if (p.isHuman())
+            return &p;
+    return nullptr;
+}
+
+int MainWindow::humanId()
+{
+    Player *human = humanPlayer();
+    return human ? human->id() : -1;
+}
+
+bool MainWindow::humanIsDefeated()
+{
+    Player *human = humanPlayer();
+    return human && human->settlements().empty();
+}
+
 void MainWindow::onNewGame()
 {
     m_engine.loadFromAssets(ASSETS_DIR, m_startMenu->selectedOptions());
     m_hasSelectedSettlement = false;
+    m_spectatorMode = false;
     refreshAllPanels();
     m_stack->setCurrentIndex(1);
     statusBar()->showMessage(QStringLiteral("Партия начата"), 3000);
@@ -312,9 +350,20 @@ void MainWindow::onLoadGame()
     m_hasSelectedSettlement = false;
     m_selectedArmyId.clear();
     m_mapView->clearSelection();
+    m_spectatorMode = false;
     refreshAllPanels();
     m_stack->setCurrentIndex(1);
     statusBar()->showMessage(QStringLiteral("Партия загружена: %1").arg(path), 5000);
+
+    if (!humanPlayer())
+    {
+        m_spectatorMode = true;
+        refreshAllPanels();
+    }
+    else if (humanIsDefeated())
+    {
+        showDefeatDialog();
+    }
 }
 
 void MainWindow::onShowRules()
@@ -327,85 +376,10 @@ MainWindow::~MainWindow() {}
 
 void MainWindow::refreshAllPanels()
 {
-    Player &human = m_engine.state().players()[0];
+    Player *human = humanPlayer();
+    bool spectator = m_spectatorMode || (human == nullptr);
+    int viewerId = human ? human->id() : -1;
 
-    // На карте нужно видеть ВСЕХ игроков — иначе чужие поселения/армии
-    // просто не существуют для человека, и атаковать/оценивать обстановку
-    // невозможно. В панели управления (updateArmyList) по-прежнему только
-    // свои армии — чужими командовать нельзя, только видеть их на карте.
-    std::vector<SettlementMarker> settlementTiles;
-    std::vector<Army> allPlayersArmies;
-    std::map<int, PlayerRelation> relations;
-    const auto &vassalizations = m_engine.state().vassalizations();
-    for (const auto &p : m_engine.state().players())
-    {
-        bool isSelf = (p.id() == human.id());
-
-        for (const auto &s : p.settlements())
-        {
-            for (const auto &t : s.tiles())
-            {
-                auto c = t.getCoords();
-                // Чужое поселение показываем только в зоне видимости
-                // человека (блок 3.6, туман войны); своё — всегда.
-                if (isSelf || human.isVisible(c))
-                    settlementTiles.push_back({c.q, c.r, p.id()});
-            }
-        }
-        for (const auto &a : p.armies())
-        {
-            if (isSelf || human.isVisible(a.position()))
-                allPlayersArmies.push_back(a);
-        }
-
-        if (p.id() == human.id())
-        {
-            relations[p.id()] = PlayerRelation::Self;
-            continue;
-        }
-        bool allied = GameState::isAllied(m_engine.state(), human.id(), p.id());
-        auto vAsVassal = vassalizations.find(p.id());        // p — чей-то вассал?
-        auto vHumanVassal = vassalizations.find(human.id()); // человек — чей-то вассал?
-        bool vassalRelation =
-            (vAsVassal != vassalizations.end() && vAsVassal->second == human.id()) || // p — вассал человека
-            (vHumanVassal != vassalizations.end() && vHumanVassal->second == p.id()); // человек — вассал p
-
-        if (allied)
-            relations[p.id()] = PlayerRelation::Ally;
-        else if (vassalRelation)
-            relations[p.id()] = PlayerRelation::Vassal;
-        else
-            relations[p.id()] = PlayerRelation::EnemyOrNeutral;
-    }
-
-    m_mapView->clearReachableTiles();
-    m_mapView->renderMap(m_engine.state().map(), settlementTiles, allPlayersArmies, human.id(), relations,
-                         &human.exploredTiles(), &human.visibleTiles());
-    m_militaryPanel->updateArmyList(human.armies());
-    m_militaryPanel->updateHeroList(human.heroes(), QString::fromStdString(human.race().getName()));
-
-    Settlement *selected = selectedHumanSettlement(human);
-    if (selected)
-    {
-        m_settlementPanel->showSettlement(
-            *selected, m_engine.buildingCatalog(), m_engine.unitCatalog());
-    }
-    else
-    {
-        // Выбранное поселение исчезло (захвачено врагом) или своих городов
-        // больше нет — иначе SettlementPanel держит протухший указатель на
-        // элемент vector<Settlement> после реаллокации/стирания, и следующий
-        // клик по кнопкам панели приводит к падению.
-        m_settlementPanel->clearSettlement();
-    }
-    m_turnPanel->updateSettlementList(human.settlements(), m_selectedSettlementAnchor);
-
-    m_techTreePanel->showTechs(
-        human.technologies(),
-        human.researchedTechIds(),
-        human.currentResearchId());
-
-    const auto &res = human.resources();
     std::string phaseName;
     switch (m_engine.state().CurPhase())
     {
@@ -420,18 +394,120 @@ void MainWindow::refreshAllPanels()
         break;
     }
 
+    // На карте нужно видеть ВСЕХ игроков — иначе чужие поселения/армии
+    // просто не существуют для человека, и атаковать/оценивать обстановку
+    // невозможно. В панели управления (updateArmyList) по-прежнему только
+    // свои армии — чужими командовать нельзя, только видеть их на карте.
+    std::vector<SettlementMarker> settlementTiles;
+    std::vector<Army> allPlayersArmies;
+    std::map<int, PlayerRelation> relations;
+    const auto &vassalizations = m_engine.state().vassalizations();
+    for (const auto &p : m_engine.state().players())
+    {
+        bool isSelf = (p.id() == viewerId);
+
+        for (const auto &s : p.settlements())
+        {
+            for (const auto &t : s.tiles())
+            {
+                auto c = t.getCoords();
+                // Чужое поселение показываем только в зоне видимости
+                // человека (блок 3.6, туман войны); своё — всегда. В режиме
+                // наблюдателя видна вся карта без тумана.
+                if (spectator || isSelf || (human && human->isVisible(c)))
+                    settlementTiles.push_back({c.q, c.r, p.id()});
+            }
+        }
+        for (const auto &a : p.armies())
+        {
+            if (spectator || isSelf || (human && human->isVisible(a.position())))
+                allPlayersArmies.push_back(a);
+        }
+
+        if (human && p.id() == human->id())
+        {
+            relations[p.id()] = PlayerRelation::Self;
+            continue;
+        }
+        bool allied = human && GameState::isAllied(m_engine.state(), human->id(), p.id());
+        auto vAsVassal = vassalizations.find(p.id());         // p — чей-то вассал?
+        auto vHumanVassal = human ? vassalizations.find(human->id()) : vassalizations.end(); // человек — чей-то вассал?
+        bool vassalRelation =
+            (vAsVassal != vassalizations.end() && vAsVassal->second == viewerId) || // p — вассал человека
+            (vHumanVassal != vassalizations.end() && vHumanVassal->second == p.id()); // человек — вассал p
+
+        if (allied)
+            relations[p.id()] = PlayerRelation::Ally;
+        else if (vassalRelation)
+            relations[p.id()] = PlayerRelation::Vassal;
+        else
+            relations[p.id()] = PlayerRelation::EnemyOrNeutral;
+    }
+
+    m_mapView->clearReachableTiles();
+    if (spectator)
+    {
+        // В режиме наблюдателя туман войны полностью снят (nullptr == нет тумана).
+        m_mapView->renderMap(m_engine.state().map(), settlementTiles, allPlayersArmies, viewerId, relations);
+    }
+    else
+    {
+        m_mapView->renderMap(m_engine.state().map(), settlementTiles, allPlayersArmies, human->id(), relations,
+                             &human->exploredTiles(), &human->visibleTiles());
+    }
+
+    if (!human)
+    {
+        // Сохранение без человеческого игрока: только наблюдение.
+        m_militaryPanel->updateArmyList({});
+        m_militaryPanel->updateHeroList({}, QString());
+        m_settlementPanel->clearSettlement();
+        m_turnPanel->updateSettlementList({}, {-1, -1});
+        m_techTreePanel->showTechs({}, {}, {});
+        m_turnPanel->updateInfo(m_engine.state().turnNumber(), phaseName, 0.f, 0.f, 0.f, 0.f);
+        m_settlementPanel->updateTradeDiplomacy(Resources{}, 1.0f, m_engine.politicalActionCatalog());
+        m_settlementPanel->setOpponents({});
+        return;
+    }
+
+    m_militaryPanel->updateArmyList(human->armies());
+    m_militaryPanel->updateHeroList(human->heroes(), QString::fromStdString(human->race().getName()));
+
+    Settlement *selected = selectedHumanSettlement(*human);
+    if (selected)
+    {
+        m_settlementPanel->showSettlement(
+            *selected, m_engine.buildingCatalog(), m_engine.unitCatalog());
+    }
+    else
+    {
+        // Выбранное поселение исчезло (захвачено врагом) или своих городов
+        // больше нет — иначе SettlementPanel держит протухший указатель на
+        // элемент vector<Settlement> после реаллокации/стирания, и следующий
+        // клик по кнопкам панели приводит к падению.
+        m_settlementPanel->clearSettlement();
+    }
+    m_turnPanel->updateSettlementList(human->settlements(), m_selectedSettlementAnchor);
+
+    m_techTreePanel->showTechs(
+        human->technologies(),
+        human->researchedTechIds(),
+        human->currentResearchId());
+
+    const auto &res = human->resources();
+
     m_turnPanel->updateInfo(
         m_engine.state().turnNumber(), phaseName,
         res.science, res.industry, res.trade, res.diplomacy);
 
     m_settlementPanel->updateTradeDiplomacy(
-        human.resources(),
-        human.effectiveTradeMultiplier(),
+        human->resources(),
+        human->effectiveTradeMultiplier(),
         m_engine.politicalActionCatalog());
 
     std::vector<int> opponentIds;
     for (const auto &p : m_engine.state().players())
-        if (p.id() != 0)
+        if (p.id() != human->id())
             opponentIds.push_back(p.id());
     m_settlementPanel->setOpponents(opponentIds);
 }
@@ -444,8 +520,10 @@ void MainWindow::onTileClicked(int q, int r)
     statusBar()->showMessage(
         QStringLiteral("Клетка: %1, %2").arg(q).arg(r));
 
-    Player &human = m_engine.state().players()[0];
-    for (auto &settlement : human.settlements())
+    Player *human = humanPlayer();
+    if (!human || m_spectatorMode)
+        return;
+    for (auto &settlement : human->settlements())
     {
         for (const auto &tile : settlement.tiles())
         {
@@ -454,7 +532,7 @@ void MainWindow::onTileClicked(int q, int r)
             {
                 selectSettlement(settlement);
                 m_settlementPanel->showSettlement(settlement, m_engine.buildingCatalog(), m_engine.unitCatalog());
-                m_turnPanel->updateSettlementList(human.settlements(), m_selectedSettlementAnchor);
+                m_turnPanel->updateSettlementList(human->settlements(), m_selectedSettlementAnchor);
                 statusBar()->showMessage(QStringLiteral("Поселение"), 5000);
                 return;
             }
@@ -471,6 +549,9 @@ void MainWindow::onTileHovered(const QString &info)
 
 void MainWindow::onArmySelected(const std::string &armyId)
 {
+    if (m_spectatorMode)
+        return;
+
     Army *army = m_engine.state().findArmy(armyId);
     if (!army)
         return;
@@ -496,7 +577,7 @@ void MainWindow::onArmySelected(const std::string &armyId)
 
 void MainWindow::onFoundSettlementRequested()
 {
-    if (m_selectedArmyId.empty())
+    if (m_spectatorMode || m_selectedArmyId.empty())
         return;
 
     auto result = m_engine.state().foundSettlementFromArmy(m_selectedArmyId);
@@ -516,6 +597,9 @@ void MainWindow::onFoundSettlementRequested()
 
 void MainWindow::onArmyMoveRequested(const std::string &armyId, int q, int r)
 {
+    if (m_spectatorMode)
+        return;
+
     auto result = m_engine.state().moveArmy(armyId, {q, r});
     if (!result.success)
     {
@@ -551,14 +635,16 @@ void MainWindow::onArmyMoveRequested(const std::string &armyId, int q, int r)
 
 void MainWindow::onSettlementListSelected(int q, int r)
 {
-    Player &human = m_engine.state().players()[0];
-    for (auto &settlement : human.settlements())
+    Player *human = humanPlayer();
+    if (!human || m_spectatorMode)
+        return;
+    for (auto &settlement : human->settlements())
     {
         if (settlement.anchorCoords().q == q && settlement.anchorCoords().r == r)
         {
             selectSettlement(settlement);
             m_settlementPanel->showSettlement(settlement, m_engine.buildingCatalog(), m_engine.unitCatalog());
-            m_turnPanel->updateSettlementList(human.settlements(), m_selectedSettlementAnchor);
+            m_turnPanel->updateSettlementList(human->settlements(), m_selectedSettlementAnchor);
             return;
         }
     }
@@ -574,11 +660,16 @@ void MainWindow::onSelectionCleared()
 
 void MainWindow::onMarchRequested(const std::vector<std::string> &unitIds)
 {
+    if (m_spectatorMode)
+        return;
+
     Settlement *settlement = m_settlementPanel->currentSettlement();
     if (!settlement)
         return;
 
-    Player &human = m_engine.state().players()[0];
+    Player *human = humanPlayer();
+    if (!human)
+        return;
 
     if (unitIds.empty())
     {
@@ -586,7 +677,7 @@ void MainWindow::onMarchRequested(const std::vector<std::string> &unitIds)
         return;
     }
 
-    human.detachArmy(*settlement, unitIds);
+    human->detachArmy(*settlement, unitIds);
     refreshAllPanels();
     statusBar()->showMessage(
         QStringLiteral("Армия выступила в поход (%1 юн.)").arg(static_cast<int>(unitIds.size())),
@@ -604,6 +695,12 @@ void MainWindow::onEndTurn()
     if (v.hasWinner())
     {
         showVictoryDialog(v);
+        return;
+    }
+
+    if (humanIsDefeated() && !m_spectatorMode)
+    {
+        showDefeatDialog();
         return;
     }
 
@@ -656,5 +753,33 @@ void MainWindow::showVictoryDialog(const VictoryResult &v)
     dialog.exec();
 
     if (!startedNewGame)
+        m_stack->setCurrentIndex(0);
+}
+
+void MainWindow::showDefeatDialog()
+{
+    int remaining = 0;
+    for (const auto &p : m_engine.state().players())
+        if (!p.settlements().empty())
+            ++remaining;
+
+    DefeatDialog dialog(m_engine.state().turnNumber(), remaining, this);
+    bool startedNewGame = false;
+    connect(&dialog, &DefeatDialog::newGameRequested, this, [this, &startedNewGame]()
+           {
+               startedNewGame = true;
+               onNewGame();
+           });
+    connect(&dialog, &DefeatDialog::exitRequested, qApp, &QApplication::quit);
+    connect(&dialog, &DefeatDialog::spectateRequested, this, [this]()
+           {
+               m_spectatorMode = true;
+               refreshAllPanels();
+               statusBar()->showMessage(
+                   QStringLiteral("Режим наблюдателя: вся карта видна"), 5000);
+           });
+    dialog.exec();
+
+    if (!startedNewGame && !m_spectatorMode)
         m_stack->setCurrentIndex(0);
 }
