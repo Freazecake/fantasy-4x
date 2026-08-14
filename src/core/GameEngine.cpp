@@ -137,15 +137,31 @@ bool GameEngine::loadFromAssets(const std::string &assetsDir, const GameStartOpt
     Map gameMap = MapGenerator::generate(mapParams);
 
     std::vector<std::string> botRaceIds;
-    for (const auto &r : allRaces)
-        if (r.getId() != options.humanRaceId)
-            botRaceIds.push_back(r.getId());
-    int numBots = std::min(static_cast<int>(botRaceIds.size()), std::clamp(options.numBots, 1, 4));
+    int numBots = std::clamp(options.numBots, 1, 4);
+    bool useExplicitRaceOrder =
+        static_cast<int>(options.raceIdsByPosition.size()) == numBots + 1;
 
-    Player human = createPlayer(0, true, raceById(options.humanRaceId), allHeroes,
+    std::string humanRaceForSlot0 = useExplicitRaceOrder
+                                        ? options.raceIdsByPosition[0]
+                                        : options.humanRaceId;
+
+    Player human = createPlayer(0, true, raceById(humanRaceForSlot0), allHeroes,
                                 m_techCatalog, startingUnit, capitals[0],
                                 options.mapWidth, options.mapHeight);
     m_state.addPlayer(human);
+
+    if (useExplicitRaceOrder)
+    {
+        for (int i = 1; i <= numBots; ++i)
+            botRaceIds.push_back(options.raceIdsByPosition[i]);
+    }
+    else
+    {
+        for (const auto &r : allRaces)
+            if (r.getId() != options.humanRaceId)
+                botRaceIds.push_back(r.getId());
+        numBots = std::min(static_cast<int>(botRaceIds.size()), numBots);
+    }
 
     for (int i = 0; i < numBots; ++i)
     {
@@ -228,6 +244,13 @@ std::string GameEngine::applyPoliticalAction(int playerId, const std::string &ac
 
 void GameEngine::endTurn()
 {
+    // Дать ботам заметить события ЧУЖОГО (обычно человеческого) хода —
+    // ОБЯЗАТЕЛЬНО до очистки, иначе атаки/требования дани человека против
+    // бота теряются бесследно и бот никогда не узнаёт, что на него напали.
+    for (auto &player : m_state.players())
+        if (!player.isHuman())
+            AIController::observeEvents(player, m_state, m_botMemory[player.id()]);
+
     m_state.clearTurnEvents();
 
     for (auto &player : m_state.players())
@@ -253,7 +276,7 @@ void GameEngine::endTurn()
     {
         if (!player.isHuman())
         {
-            AIController::takeTurn(player, m_state, m_buildingCatalog,
+            AIController::takeTurn(player, m_state, m_botMemory[player.id()], m_buildingCatalog,
                                    m_techCatalog, m_unitCatalog,
                                    m_politicalActionCatalog);
         }

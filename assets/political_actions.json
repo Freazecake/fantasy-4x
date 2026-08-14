@@ -16,13 +16,13 @@
             "id": "pa_vassalize",
             "name": "Вассализация",
             "type": "vassalize",
-            "diplomacyCost": 150
+            "diplomacyCost": 190
         },
         {
             "id": "pa_political_conquest",
             "name": "Политическое поглощение",
             "type": "politicalConquest",
-            "diplomacyCost": 200
+            "diplomacyCost": 260
         }
     ]
 }

@@ -13,6 +13,8 @@
 #include "ai/AIController.hpp"
 #include "ai/AIStrategy.hpp"
 
+#include <unordered_map>
+
 #include <algorithm>
 #include <cmath>
 
@@ -437,16 +439,17 @@ TEST_CASE("AIController::decidePoliticalAction: выбирает Conquest про
     human.advanceTurn();
 
     Resources budget;
-    budget.diplomacy = 180.0f;
+    budget.diplomacy = 400.0f;
     human.addResources(budget);
 
     auto conquest = makeAction("pa_conquest", "politicalConquest", 30);
     auto alliance = makeAction("pa_alliance", "alliance", 10);
     std::vector<PoliticalAction> catalog = {alliance, conquest};
 
-    AIController::decidePoliticalAction(human, catalog, state);
+    BotMemory memory;
+    AIController::decidePoliticalAction(human, catalog, state, memory);
 
-    CHECK(human.resources().diplomacy < 30.0f);
+    CHECK(human.resources().diplomacy < 300.0f);
     // Мало просто "дипломатия уменьшилась" — это верно и для alliance (cost
     // 10), и для conquest (cost 30). Проверяем именно следствие Conquest:
     // поселения цели переходят победителю (см. GameState::applyPoliticalConquest).
@@ -473,7 +476,8 @@ TEST_CASE("AIController::decideMilitaryActions: армия движется к �
 
     state.players()[1].addArmy(Army("enemy", 1, {8, 8}, {makeUnit("e", 0, "", 2, 1, 10)}));
 
-    AIController::decideMilitaryActions(state.players()[0], state, GlobalPhase::Phase2_OpenMap);
+    BotMemory memory;
+    AIController::decideMilitaryActions(state.players()[0], state, GlobalPhase::Phase2_OpenMap, memory);
 
     Army *army = state.findArmy("army0");
     CHECK(army != nullptr);
@@ -511,7 +515,8 @@ TEST_CASE("AIController::takeTurn: найм юнитов реально прои
     std::vector<Unit> unitCatalog = {makeUnit("militia", 0, "", 5, 3, 20, 20, 10)};
     std::vector<PoliticalAction> actionCatalog;
 
-    AIController::takeTurn(state.players()[0], state, buildingCatalog, techCatalog,
+    BotMemory memory;
+    AIController::takeTurn(state.players()[0], state, memory, buildingCatalog, techCatalog,
                            unitCatalog, actionCatalog);
 
     CHECK(state.players()[0].settlements()[0].recruitmentQueue().size() == 1u);
@@ -558,11 +563,12 @@ TEST_CASE("AIController::takeTurn: 3 хода двух AI игроков")
         makeAction("pa_conquest", "politicalConquest", 200),
     };
 
+    std::unordered_map<int, BotMemory> memoryByPlayer;
     for (int turn = 0; turn < 3; ++turn)
     {
         for (auto &player : state.players())
         {
-            AIController::takeTurn(player, state,
+            AIController::takeTurn(player, state, memoryByPlayer[player.id()],
                                    buildingCatalog, techCatalog,
                                    unitCatalog, actionCatalog);
             player.advanceTurn();
@@ -713,7 +719,7 @@ TEST_CASE("AIController::decideDeployment: гарнизон выше порог�
     p.addSettlement(s);
     state.addPlayer(p);
 
-    AIController::decideDeployment(state.players()[0]);
+    AIController::decideDeployment(state.players()[0], state);
 
     Settlement &after = state.players()[0].settlements()[0];
     CHECK(after.garrison().size() >= 1u); // резерв остался
@@ -741,7 +747,7 @@ TEST_CASE("AIController::decideDeployment: маленький гарнизон (
     p.addSettlement(s);
     state.addPlayer(p);
 
-    AIController::decideDeployment(state.players()[0]);
+    AIController::decideDeployment(state.players()[0], state);
 
     CHECK(state.players()[0].settlements()[0].garrison().size() == 1u);
     CHECK(state.players()[0].armies().empty());
@@ -770,7 +776,7 @@ TEST_CASE("AIController::decideDeployment: поселенцы выводятся
     p.addSettlement(s);
     state.addPlayer(p);
 
-    AIController::decideDeployment(state.players()[0]);
+    AIController::decideDeployment(state.players()[0], state);
 
     CHECK(state.players()[0].settlements()[0].garrison().empty());
     CHECK(state.players()[0].armies().size() == 2u); // каждый поселенец — своя армия

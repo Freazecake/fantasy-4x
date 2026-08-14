@@ -202,7 +202,7 @@ float AIStrategy::scoreTradeExchange(const Player &p, const std::string &targetR
 }
 
 float AIStrategy::scorePoliticalAction(const Player &p, const PoliticalAction &a,
-                                       const Player &target, GlobalPhase phase)
+                                       const Player &target, GlobalPhase phase, float trust)
 {
     if (p.resources().diplomacy < static_cast<float>(a.getCost()))
         return -1.0f;
@@ -229,7 +229,27 @@ float AIStrategy::scorePoliticalAction(const Player &p, const PoliticalAction &a
         break;
     }
 
-    return base * phaseWeightDiplomacy(phase);
+    // Доверие решает не "можем ли себе позволить", а "хотим ли вообще" —
+    // для дружелюбных действий низкое доверие делает предложение
+    // бессмысленным (не заискиваем перед тем, кто только что напал), для
+    // агрессивных — наоборот, снимает тормоз добить уже враждебного соседа
+    // охотнее нейтрального.
+    float trustFactor = 1.0f;
+    switch (a.getType())
+    {
+    case PoliticalActionType::Alliance:
+        trustFactor = std::clamp(1.0f + trust / 100.0f, 0.05f, 2.0f);
+        if (trust < -30.0f)
+            trustFactor *= 0.1f;
+        break;
+    case PoliticalActionType::Vassalize:
+    case PoliticalActionType::DemandTribute:
+    case PoliticalActionType::PoliticalConquest:
+        trustFactor = std::clamp(1.0f - trust / 150.0f, 0.5f, 1.8f);
+        break;
+    }
+
+    return base * phaseWeightDiplomacy(phase) * trustFactor;
 }
 
 float AIStrategy::scoreAttack(const Army &mine, const Army &enemyArmyOrGarrisonOwner,

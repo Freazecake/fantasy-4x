@@ -13,7 +13,7 @@ public:
     static float scoreRecruitUnit(const Settlement &s, const Unit &u, GlobalPhase phase);
     static float scoreTradeExchange(const Player &p, const std::string &targetResource, GlobalPhase phase);
     static float scorePoliticalAction(const Player &p, const PoliticalAction &a,
-                                      const Player &target, GlobalPhase phase);
+                                      const Player &target, GlobalPhase phase, float trust = 0.0f);
     static float scoreAttack(const Army &mine, const Army &enemyArmyOrGarrisonOwner,
                              GlobalPhase phase, int enemySettlementCount);
     static float scoreExpand(const Army &mine, const Coords &candidateDestination,

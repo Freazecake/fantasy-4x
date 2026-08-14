@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include "GameState.hpp"
 #include "Building.hpp"
@@ -13,6 +14,7 @@
 #include "Hero.hpp"
 #include "StartLayout.hpp"
 #include "ai/AIController.hpp"
+#include "ai/BotMemory.hpp"
 
 struct GameStartOptions
 {
@@ -20,6 +22,8 @@ struct GameStartOptions
     int numBots = 4;
     int mapWidth = StartLayout::MAP_WIDTH;
     int mapHeight = StartLayout::MAP_HEIGHT;
+
+    std::vector<std::string> raceIdsByPosition;
 };
 
 class GameEngine
@@ -34,6 +38,8 @@ private:
     std::vector<Race> m_raceCatalog;
     std::vector<Hero> m_heroCatalog;
     std::string m_assetsDir;
+
+    std::unordered_map<int, BotMemory> m_botMemory;
 
 public:
     bool loadFromAssets(const std::string &assetsDir, unsigned int mapSeed = 0)

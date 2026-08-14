@@ -19,12 +19,12 @@ enum class GlobalPhase
     Phase3_Final,
 };
 
-inline constexpr int PHASE2_TURN_THRESHOLD = 20;
-inline constexpr int PHASE3_TURN_THRESHOLD = 35;
+inline constexpr int PHASE2_TURN_THRESHOLD = 15;
+inline constexpr int PHASE3_TURN_THRESHOLD = 30;
 inline constexpr int PHASE3_MAX_ALIVE_PLAYERS = 3;
 
-inline constexpr int POLITICAL_CONQUEST_BASE_COST = 200;
-inline constexpr int POLITICAL_CONQUEST_COST_PER_EXTRA_SETTLEMENT = 150;
+inline constexpr int POLITICAL_CONQUEST_BASE_COST = 175;
+inline constexpr int POLITICAL_CONQUEST_COST_PER_EXTRA_SETTLEMENT = 130;
 inline constexpr float POLITICAL_CONQUEST_STOCKPILE_CAP = 150.0f;
 inline constexpr float TRIBUTE_STOCKPILE_CAP = 60.0f;
 
