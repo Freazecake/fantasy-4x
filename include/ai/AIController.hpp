@@ -32,15 +32,15 @@ public:
 
     static RushSignal detectRivalRush(const Player &p, const GameState &state);
 
+    static bool worthAttacking(const Player &attacker, const Army &mine,
+                               const Player &defenderOwner, const std::vector<Unit> &defenderUnits,
+                               float defenderTerrainBonus, const std::vector<Building> &defenderBuildings,
+                               bool isEliminationTarget, int turnNumber, bool isDefensive = false);
+
 private:
     static void pursueNearestEnemy(Player &p, GameState &state, Army &mine,
                                    const std::string &armyId, const std::vector<Coords> &occupied);
 
     static bool tryRallyOrMerge(Player &p, GameState &state, const std::string &armyId,
                                 const std::vector<Coords> &occupied);
-
-    static bool worthAttacking(const Player &attacker, const Army &mine,
-                               const Player &defenderOwner, const std::vector<Unit> &defenderUnits,
-                               float defenderTerrainBonus, const std::vector<Building> &defenderBuildings,
-                               bool isEliminationTarget, int turnNumber, bool isDefensive = false);
 };

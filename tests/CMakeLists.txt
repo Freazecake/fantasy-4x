@@ -45,6 +45,7 @@ add_executable(game_tests
     test_coords_army.cpp
     test_combat.cpp
     test_ai.cpp
+    test_ai_smart.cpp
     test_game_engine.cpp
     test_map_generator.cpp
 
@@ -69,6 +70,7 @@ add_executable(game_tests
     ${GAME_ROOT}/src/core/GameEngine.cpp
     ${GAME_ROOT}/src/ai/AIController.cpp
     ${GAME_ROOT}/src/ai/AIStrategy.cpp
+    ${GAME_ROOT}/src/ai/CombatSimulator.cpp
 )
 
 target_include_directories(game_tests PRIVATE
